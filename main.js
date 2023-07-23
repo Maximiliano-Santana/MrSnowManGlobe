@@ -13,6 +13,24 @@ const sizes = {
   height: window.innerHeight
 }
 
+//Textures 
+const loadingManager = new THREE.LoadingManager();
+loadingManager.onStart = () => {
+  console.log('onstart')
+}
+loadingManager.onLoad = () => {
+  console.log('on loaded')
+}
+loadingManager.onProgress = () => {
+  console.log('on progress')
+}
+loadingManager.onError = () => {
+  console.log('on error')
+}
+
+const textureLoader = new THREE.TextureLoader(loadingManager);
+const previewTexture = textureLoader.load('/resources/textures/texturePreview.png');
+
 //Renderer
 const canvas = document.querySelector('.experience');
 const renderer = new THREE.WebGLRenderer({canvas:canvas});
@@ -52,51 +70,42 @@ orbitControls.enableDamping = true;
 
 //Materials
 
-//--------------Creando la base
+//--------------Base 
 const baseProperties = {
+  //BaseShape Properties
   width: 20,
-  height: 5, 
+  height: 20, 
+  visualizeBaseShape: false,
   
-  depth: 20, 
+  //Extrude Geometry
+  extrudeSteps: 1,
+  extrudeDepth: 5, 
+  extrudeBevelEnabled: true,
+	extrudeBevelThickness: 2,
+	extrudeBevelSize: 4,
+	extrudeBevelOffset: 0,
+	extrudeBevelSegments: 3,
+  extrudeWireframeView: false,
 }
 
-//Creo la forma base de la cual voy a extruir la forma
-//Ademas creo un visualizador para ver las proporciones con las que este va contar
+
 let baseShape = null;
 
 let baseLineGeometry = null;
 let baseLineMaterial = null;
 let baseLine = null;
 
-function generateBaseShape(){
+let baseGeometry = null;
+let baseMaterial = null;
+let baseMesh = null;
 
-  if(baseLine){ //Elimino en memoria la linea anterior creada
-    baseLineGeometry.dispose();
-    baseLineMaterial.dispose();
-    scene.remove(baseLine)
-  }
+let baseGroup = new THREE.Group();
 
-  //Creo la forma
-  baseShape = new THREE.Shape();
-  baseShape.lineTo (baseProperties.width, 0);
-  baseShape.lineTo (baseProperties.width, baseProperties.height);
-  baseShape.lineTo (0, baseProperties.height);
-  baseShape.closePath();
-  
-  //Para poder visualizar la forma creada voy a crear un objeto3D Line
-  baseLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xffffff, 
-  });
-  
-  //Creo una geometria a partir de los puntos de mi baseShape con la funcion setFromPoints del bufferGeometry y le paso el arreglo de vectores que retorna la funcion .getPoints()
-  baseLineGeometry = new THREE.BufferGeometry().setFromPoints(baseShape.getPoints());
-  baseLineGeometry.center(); //Centro la geometria al origen
-  
-  baseLine = new THREE.Line( baseLineGeometry, baseLineMaterial );
-  scene.add( baseLine );
-}
+generateBase();
 
-generateBaseShape();
+
+baseGroup.rotation.x = -Math.PI/2;
+
 
 
 //Objects 
@@ -116,12 +125,27 @@ const gui = new GUI();
 
 //Base folder
 
-const baseGui = gui.addFolder(`Base`);
+const baseGui = gui.addFolder('Base').onFinishChange(generateBase);
 
-baseGui.add(baseProperties, 'height', 0, 10).onChange(generateBaseShape);
-baseGui.add(baseProperties, 'width', 0, 40).onChange(generateBaseShape);
+//Folder Base Shape
+const baseShapeGui = baseGui.addFolder('Base Shape').close();
 
+baseShapeGui.add(baseProperties, 'visualizeBaseShape');
+baseShapeGui.add(baseProperties, 'height', 0, 40);
+baseShapeGui.add(baseProperties, 'width', 0, 40);
 
+//Folder Extrude Base Shape
+
+const extrudeBaseShapeGui = baseGui.addFolder('Extrude Base Shape').close();
+
+extrudeBaseShapeGui.add(baseProperties, 'extrudeDepth', 1, 40, 1).name('Extrude Depth');
+extrudeBaseShapeGui.add(baseProperties, 'extrudeWireframeView').name('Wireframe view');
+extrudeBaseShapeGui.add(baseProperties, 'extrudeSteps', 1, 4, 1).name('Extrude Steps');
+extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelEnabled').name('Bevel enabled');
+extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelThickness', 0, 2).name('Bevel Thickness');
+extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Size');
+extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
+extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
 
 
 //Animation
@@ -135,3 +159,73 @@ const tick = ()=>{
   window.requestAnimationFrame(tick);
 }
 tick();
+
+function generateBase(){
+  //Creo la forma base y la extruyo con las anteriores funciones
+  generateBaseShape();
+  extrudeBaseGoemetry();
+
+  //Creo un grupo para manipular todo en conjunto 
+  baseGroup.clear();
+  if(baseProperties.visualizeBaseShape){
+    baseGroup.add(baseLine);
+  }
+  baseGroup.add(baseMesh);
+  scene.add(baseGroup)
+
+}
+
+function generateBaseShape(){
+  if(baseLine){ //Elimino en memoria la linea anterior creada
+    baseLineGeometry.dispose();
+    baseLineMaterial.dispose();
+  }
+
+  //Creo la forma
+  baseShape = new THREE.Shape();
+  baseShape.lineTo (baseProperties.width, 0);
+  baseShape.lineTo (baseProperties.width, baseProperties.height);
+  baseShape.lineTo (0, baseProperties.height);
+  baseShape.closePath();
+  
+  if(baseProperties.visualizeBaseShape){ //Por temas de rendimiento condiciono a que se cree o no el visualizador de la forma base
+
+    //Para poder visualizar la forma creada voy a crear un objeto3D Line
+    baseLineMaterial = new THREE.LineDashedMaterial( { color: 0xffffff, dashSize: 1, gapSize: 0.5 } )
+    
+    //Creo una geometria a partir de los puntos de mi baseShape con la funcion setFromPoints del bufferGeometry y le paso el arreglo de vectores que retorna la funcion .getPoints()
+    baseLineGeometry = new THREE.BufferGeometry().setFromPoints(baseShape.getPoints());
+    
+    baseLineGeometry.center();
+    baseLineGeometry.translate(0, 0, -baseProperties.extrudeDepth/2) //Pongo la geometria en el inicio de la extruccion.
+
+    //baseLineGeometry.center(); //Centro la geometria al origen
+    
+    baseLine = new THREE.Line( baseLineGeometry, baseLineMaterial );
+  }
+}
+
+function extrudeBaseGoemetry(){
+  if(baseMesh){ //Elimino en memoria la linea anterior creada
+    baseGeometry.dispose();
+    baseMaterial.dispose();
+  }
+
+  baseGeometry = new THREE.ExtrudeGeometry(baseShape, {
+    steps: baseProperties.extrudeSteps,
+    depth: baseProperties.extrudeDepth,
+    bevelEnabled: baseProperties.extrudeBevelEnabled,
+    bevelThickness: baseProperties.extrudeBevelThickness,
+    bevelOffset: baseProperties.extrudeBevelOffset,
+    bevelSegments: baseProperties.extrudeBevelSegments,
+    bevelSize: baseProperties.extrudeBevelSize,
+  });
+
+  baseGeometry.center();
+  baseGeometry.translate
+  baseMaterial  = new THREE.MeshBasicMaterial({
+    color: 'red',
+    wireframe: baseProperties.extrudeWireframeView,
+  });
+  baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+}
