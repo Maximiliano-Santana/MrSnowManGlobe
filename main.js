@@ -6,6 +6,8 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 import GUI from 'lil-gui';
 import { gsap } from 'gsap';
 
+THREE.ColorManagement.enabled = false
+
 
 //Sizes 
 const sizes = {
@@ -13,27 +15,55 @@ const sizes = {
   height: window.innerHeight
 }
 
-//Textures 
+//----------------------------------------------Textures 
+//Loading manager
 const loadingManager = new THREE.LoadingManager();
 loadingManager.onStart = () => {
-  console.log('onstart')
+  //console.log('onstart')
 }
 loadingManager.onLoad = () => {
   console.log('on loaded')
 }
 loadingManager.onProgress = () => {
-  console.log('on progress')
+  //console.log('on progress')
 }
 loadingManager.onError = () => {
-  console.log('on error')
+  //console.log('on error')
 }
 
 const textureLoader = new THREE.TextureLoader(loadingManager);
-const previewTexture = textureLoader.load('/resources/textures/texturePreview.png');
+
+//Preview Texture
+const previewTexture = textureLoader.load('/resources/textures/texturePreview8x8.png');
+previewTexture.wrapS = THREE.RepeatWrapping
+previewTexture.wrapT = THREE.RepeatWrapping
+previewTexture.repeat.x = 0.5;
+previewTexture.repeat.y = 0.5;
+previewTexture.generateMipmaps = false;
+previewTexture.magFilter = THREE.NearestFilter;
+
+//Base texture 
+const baseTexture = {
+  color: textureLoader.load('/resources/textures/baseTextures/color_map.jpg'),
+  ambientOcclusion: textureLoader.load('/resources/textures/baseTextures/ao_map.jpg'),
+  displacement: textureLoader.load('/resources/textures/baseTextures/displacement_map.jpg'),
+  normal: textureLoader.load('/resources/textures/baseTextures/normal_map_opengl.jpg'),
+  roughness: textureLoader.load('/resources/textures/baseTextures/roughness_map.jpg'),
+}
+
+Object.keys(baseTexture).forEach((texture)=>{
+  baseTexture[texture].wrapS = THREE.MirroredRepeatWrapping;
+  baseTexture[texture].wrapT = THREE.MirroredRepeatWrapping;
+  baseTexture[texture].repeat.x = 0.05;
+  baseTexture[texture].repeat.y = 0.05;
+})
+
 
 //Renderer
 const canvas = document.querySelector('.experience');
 const renderer = new THREE.WebGLRenderer({canvas:canvas});
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace
+
 
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -64,8 +94,11 @@ camera.position.set(0, 20, 50);
 const orbitControls = new OrbitControls(camera, canvas);
 orbitControls.enableDamping = true;
 
-//Geometries
+//Lights 
+const ambientLight = new THREE.AmbientLight('#ffffff', 1);
+scene.add(ambientLight);
 
+//Geometries
 
 
 //Materials
@@ -79,13 +112,17 @@ const baseProperties = {
   
   //Extrude Geometry
   extrudeSteps: 1,
-  extrudeDepth: 5, 
+  extrudeDepth: 4, 
   extrudeBevelEnabled: true,
-	extrudeBevelThickness: 2,
-	extrudeBevelSize: 4,
+	extrudeBevelThickness: 1,
+	extrudeBevelSize: 1,
 	extrudeBevelOffset: 0,
 	extrudeBevelSegments: 3,
   extrudeWireframeView: false,
+
+  //Textures and Material
+  textureRepeatX: 0.05,
+  textureRepeatY: 0.05,
 }
 
 
@@ -109,10 +146,14 @@ baseGroup.rotation.x = -Math.PI/2;
 
 
 //Objects 
-const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1 ,1),
-  new THREE.MeshBasicMaterial({color:'white'}),
-);
+// const cube = new THREE.Mesh(
+//   new THREE.BoxGeometry(40, 40 ,40),
+//   baseMaterial,
+// );
+
+// scene.add(cube)
+// console.log(cube.geometry.attributes)
+// console.log(baseMesh.geometry.attributes)
 
 //cube.scale = 1
 
@@ -147,7 +188,12 @@ extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Si
 extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
 extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
 
+//Folder Textures and Materials
 
+const textureBaseGui = baseGui.addFolder('Textures & Materials');
+
+textureBaseGui.add(baseProperties, 'textureRepeatX', );
+textureBaseGui.add(baseProperties, 'textureRepeatY', );
 //Animation
 
 const clock = new THREE.Clock();
@@ -191,7 +237,7 @@ function generateBaseShape(){
   if(baseProperties.visualizeBaseShape){ //Por temas de rendimiento condiciono a que se cree o no el visualizador de la forma base
 
     //Para poder visualizar la forma creada voy a crear un objeto3D Line
-    baseLineMaterial = new THREE.LineDashedMaterial( { color: 0xffffff, dashSize: 1, gapSize: 0.5 } )
+    baseLineMaterial = new THREE.LineDashedMaterial( { color: 0xff0000, dashSize: 1, gapSize: 0.5 } )
     
     //Creo una geometria a partir de los puntos de mi baseShape con la funcion setFromPoints del bufferGeometry y le paso el arreglo de vectores que retorna la funcion .getPoints()
     baseLineGeometry = new THREE.BufferGeometry().setFromPoints(baseShape.getPoints());
@@ -223,8 +269,8 @@ function extrudeBaseGoemetry(){
 
   baseGeometry.center();
   baseGeometry.translate
-  baseMaterial  = new THREE.MeshBasicMaterial({
-    color: 'red',
+  baseMaterial  = new THREE.MeshStandardMaterial({
+    map: baseTexture.color,
     wireframe: baseProperties.extrudeWireframeView,
   });
   baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
