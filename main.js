@@ -2,6 +2,8 @@ import './style.css';
 
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 import GUI from 'lil-gui';
 import { gsap } from 'gsap';
@@ -17,17 +19,20 @@ const sizes = {
   height: window.innerHeight
 }
 
-//----------------------------------------------Textures 
+//----------------------------------------------Loaders
+
 //Loading manager
 const loadingManager = new THREE.LoadingManager();
 loadingManager.onStart = () => {
   //console.log('onstart')
 }
 loadingManager.onLoad = () => {
-  console.log('on loaded')
+  console.log('assets loaded');
+  console.log('initializing project')
+  initProject();
 }
-loadingManager.onProgress = () => {
-  //console.log('on progress')
+loadingManager.onProgress = (asset) => {
+  console.log('asset loaded: ' + asset)
 }
 loadingManager.onError = () => {
   //console.log('on error')
@@ -35,6 +40,8 @@ loadingManager.onError = () => {
 
 const textureLoader = new THREE.TextureLoader(loadingManager);
 const cubeTextureLoader = new THREE.CubeTextureLoader(loadingManager);
+const fontLoader = new FontLoader(loadingManager);
+
 
 //Preview Texture
 const previewTexture = textureLoader.load('/resources/textures/texturePreview8x8.png');
@@ -62,7 +69,17 @@ const environmentMapTexture = cubeTextureLoader.load([
   'resources/textures/environmentMap/ny.png',
   'resources/textures/environmentMap/pz.png',
   'resources/textures/environmentMap/nz.png',
-])
+]);
+
+//Nameplate Text 
+const fontUrl = '/node_modules/three/examples/fonts/gentilis_regular.typeface.json';
+let nameplateFont = null;
+const nameFont = fontLoader.load(fontUrl, (font)=>{
+  nameplateFont = font;
+});
+
+
+
 
 //Renderer
 const canvas = document.querySelector('.experience');
@@ -146,7 +163,14 @@ const baseProperties = {
   envMapIntensity: 1
 }
 
+const nameplateProperties = {
+  //Plate Properties 
+  plateHeight: baseProperties.extrudeDepth,
+  plateWidth: baseProperties.width,
+  plateDepth: 0.25,
+}
 
+//Base variables 
 let baseShape = null;
 
 let baseLineGeometry = null;
@@ -157,12 +181,24 @@ let baseGeometry = null;
 let baseMaterial = null;
 let baseMesh = null;
 
+let plateGeometry = null
+let plateMesh = null
+
+let nameGeometry = null;
+let nameMesh = null;
+let nameplateMaterial = null
+
+
+
 let baseGroup = new THREE.Group();
 
-generateBase();
+function initProject(){
 
 
-baseGroup.rotation.x = -Math.PI/2;
+  generateBase();
+
+}
+
 
 
 
@@ -187,10 +223,13 @@ const gui = new GUI();
 
 //Base folder
 
-const baseGui = gui.addFolder('Base').onChange(generateBase);
+const baseGui = gui.addFolder('Base').onChange(generateBase)//.close();
+
+//Wood Base Folder
+const woodBaseGui = baseGui.addFolder('Wood Base').close();
 
 //Folder Base Shape
-const baseShapeGui = baseGui.addFolder('Base Shape').close();
+const baseShapeGui = woodBaseGui.addFolder('Base Shape').close();
 
 baseShapeGui.add(baseProperties, 'visualizeBaseShape');
 baseShapeGui.add(baseProperties, 'height', 0, 40);
@@ -198,7 +237,7 @@ baseShapeGui.add(baseProperties, 'width', 0, 40);
 
 //Folder Extrude Base Shape
 
-const extrudeBaseShapeGui = baseGui.addFolder('Extrude Base Shape').close();
+const extrudeBaseShapeGui = woodBaseGui.addFolder('Extrude Base Shape').close();
 
 extrudeBaseShapeGui.add(baseProperties, 'extrudeDepth', 1, 40, 1).name('Extrude Depth');
 extrudeBaseShapeGui.add(baseProperties, 'extrudeWireframeView').name('Wireframe view');
@@ -209,9 +248,9 @@ extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Si
 extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
 extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
 
-//Folder Base Textures and Materials
+//Folder Wood Base Textures and Materials
 
-const textureBaseGui = baseGui.addFolder('Base Textures & Materials');
+const textureBaseGui = woodBaseGui.addFolder('Base Textures & Materials').close();
 
 textureBaseGui.add(baseProperties, 'textureRepeatX', 0.005, 0.15).name('Repeat X');
 textureBaseGui.add(baseProperties, 'textureRepeatY', 0.005, 0.15).name('Repeat Y');
@@ -226,6 +265,13 @@ textureBaseGui.add(baseProperties, 'materialclearCoat', 0, 1).name('Clear Coat')
 textureBaseGui.add(baseProperties, 'materialclearCoatRoughness', 0, 1).name('ClearC Roughness');
 textureBaseGui.add(baseProperties, 'materialNormalScale', -5, 5).name('NormalScale');
 textureBaseGui.add(baseProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
+
+//Nameplate Folder
+
+const nameplateGui = baseGui.addFolder('Nameplate');
+
+nameplateGui.add(nameplateProperties, 'plateDepth', 0, 5);
+
 //Animation
 
 const clock = new THREE.Clock();
@@ -243,14 +289,19 @@ function generateBase(){
   generateBaseShape();
   generateBaseMesh();
 
-  //Creo un grupo para manipular todo en conjunto 
+  //Creo un grupo para manipular todo en conjunto de la extruccion
   baseGroup.clear();
   if(baseProperties.visualizeBaseShape){
     baseGroup.add(baseLine);
   }
   baseGroup.add(baseMesh);
   scene.add(baseGroup)
+  baseGroup.rotation.x = -Math.PI/2;
 
+  //Creo la placa con el nombre y el material de ambos
+  nameplateMaterial = new THREE.MeshBasicMaterial({color:'Yellow'});
+  generatePlateMesh();
+  generateNameMesh();
 }
 
 function generateBaseShape(){
@@ -336,3 +387,28 @@ function generateBaseMesh(){
 
   baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
 }
+
+function generatePlateMesh(){
+  if(plateMesh){ 
+    plateGeometry.dispose();
+    nameplateMaterial.dispose();
+    scene.remove(plateMesh);
+  }
+
+  //Update plate properties on depends the base size
+  nameplateProperties.plateHeight = baseProperties.extrudeDepth,
+  nameplateProperties.plateWidth = baseProperties.width,
+
+  //Create Plate Geometry
+
+  plateGeometry = new THREE.BoxGeometry(nameplateProperties.plateWidth, nameplateProperties.plateHeight, nameplateProperties.plateDepth);
+  
+  //Create Plate Material
+  plateMesh = new THREE.Mesh(plateGeometry, nameplateMaterial);
+  scene.add(plateMesh)
+}
+
+function generateNameMesh(){
+
+}
+
