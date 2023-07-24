@@ -10,9 +10,6 @@ import { gsap } from 'gsap';
 
 
 
-THREE.ColorManagement.enabled = false
-
-
 //Sizes 
 const sizes = {
   width: window.innerWidth,
@@ -44,7 +41,7 @@ const fontLoader = new FontLoader(loadingManager);
 
 
 //Preview Texture
-const previewTexture = textureLoader.load('/resources/textures/texturePreview8x8.png');
+const previewTexture = textureLoader.load('/resources/textures/texturePreview.png');
 previewTexture.wrapS = THREE.RepeatWrapping
 previewTexture.wrapT = THREE.RepeatWrapping
 previewTexture.repeat.x = 0.5;
@@ -78,58 +75,17 @@ const nameFont = fontLoader.load(fontUrl, (font)=>{
   nameplateFont = font;
 });
 
+//Nameplate Texture
+const nameplateTexture = {
+  color: textureLoader.load('/resources/textures/nameplateTextures/color_map.jpg'),
+  ambientOcclusion: textureLoader.load('/resources/textures/nameplateTextures/ao_map.jpg'),
+  displacement: textureLoader.load('/resources/textures/nameplateTextures/displacement_map.jpg'),
+  normal: textureLoader.load('/resources/textures/nameplateTextures/normal_map_opengl.jpg'),
+  metalness: textureLoader.load('/resources/textures/nameplateTextures/metalness_map.jpg'),
+}
 
 
-
-//Renderer
-const canvas = document.querySelector('.experience');
-const renderer = new THREE.WebGLRenderer({canvas:canvas});
-renderer.outputColorSpace = THREE.LinearSRGBColorSpace
-
-
-renderer.setSize(sizes.width, sizes.height);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-
-//Resize
-window.addEventListener('resize', ()=>{
-  //Update Sizes 
-  sizes.width = window.innerWidth;
-  sizes.height = window.innerHeight;
-  //Update Camera
-  camera.aspect = sizes.width/sizes.height;
-  camera.updateProjectionMatrix();
-  //Update renderer
-  renderer.setSize(sizes.width, sizes.height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-})
-
-
-//Scene 
-const scene = new THREE.Scene();
-
-//Camera 
-const camera = new THREE.PerspectiveCamera(50, sizes.width/sizes.height  , 0.1, 100);
-camera.position.set(0, 20, 50);
-
-//Controls
-const orbitControls = new OrbitControls(camera, canvas);
-orbitControls.enableDamping = true;
-
-//Lights 
-const ambientLight = new THREE.AmbientLight('#ffffff', 1);
-scene.add(ambientLight);
-
-const pointLight = new THREE.PointLight('#ffffff', 1)
-pointLight.position.set(0, 10, -20)
-scene.add(pointLight);
-
-//Geometries
-
-
-//Materials
-
-//--------------Base 
+//----------------------------------------------Init project
 const baseProperties = {
   //BaseShape Properties
   width: 20,
@@ -151,7 +107,7 @@ const baseProperties = {
   textureRepeatY: 0.05,
   textureRotation: (Math.PI/2),
   
-  materialColor: '#6c5a3d',
+  materialColor: '#988361',
   materialRoughness: 0,
   materialMetalness: 0, 
   materialReflectivity: 0.25, 
@@ -168,9 +124,33 @@ const nameplateProperties = {
   plateHeight: baseProperties.extrudeDepth,
   plateWidth: baseProperties.width,
   plateDepth: 0.25,
+  
+  //Name properties
+  nameSize: 2.5,
+  nameHeight: 0.25,
+  nameCurveSegments: 2,
+  nameBevelEnabled: false,
+  nameBevelThickness: 1,
+  nameBevelSize: 0,
+  nameBevelOffset: 0, 
+  nameBevelSegments: 5,
+  
+  //Material propierties
+  textureRepeatX: 1, 
+  textureRepeatY: 1, 
+  textureRotation: 0,
+  wireframeView: false,
+
+  materialColor: '#ffffff',
+  materialRoughness: 0,
+  materialMetalness: 1, 
+  materialReflectivity: 0.25, 
+
+  materialAoIntensity: 5,
+  materialNormalScale: 1,
+  envMapIntensity: 1
 }
 
-//Base variables 
 let baseShape = null;
 
 let baseLineGeometry = null;
@@ -188,110 +168,210 @@ let nameGeometry = null;
 let nameMesh = null;
 let nameplateMaterial = null
 
-
-
 let baseGroup = new THREE.Group();
+let nameplateGroup = new THREE.Group();
+
+//Scene 
+const scene = new THREE.Scene();
 
 function initProject(){
 
+  //Renderer
+  const canvas = document.querySelector('.experience');
+  const renderer = new THREE.WebGLRenderer({canvas:canvas});
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace
+
+
+  renderer.setSize(sizes.width, sizes.height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+
+  //Resize
+  window.addEventListener('resize', ()=>{
+    //Update Sizes 
+    sizes.width = window.innerWidth;
+    sizes.height = window.innerHeight;
+    //Update Camera
+    camera.aspect = sizes.width/sizes.height;
+    camera.updateProjectionMatrix();
+    //Update renderer
+    renderer.setSize(sizes.width, sizes.height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  })
+
+
+
+  //Camera 
+  const camera = new THREE.PerspectiveCamera(50, sizes.width/sizes.height  , 0.1, 100);
+  camera.position.set(0, 20, 50);
+
+  //Controls
+  const orbitControls = new OrbitControls(camera, canvas);
+  orbitControls.enableDamping = true;
+
+  //Lights 
+  const ambientLight = new THREE.AmbientLight('#ffffff', 1);
+  scene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight('#ffffff', 1)
+  pointLight.position.set(0, 10, -20)
+  scene.add(pointLight);
+
+  //Geometries
+
+
+  //Materials
+
+  //--------------Base 
+
+
+  //Base variables 
 
   generateBase();
 
+
+
+  //Objects 
+  // const cube = new THREE.Mesh(
+  //   new THREE.BoxGeometry(40, 40 ,40),
+  //   baseMaterial,
+  // );
+
+  // scene.add(cube)
+  // console.log(cube.geometry.attributes)
+  // console.log(baseMesh.geometry.attributes)
+
+  //cube.scale = 1
+
+  camera.lookAt(new THREE.Vector3(0,0,0));
+
+
+  //--------------------Gui 
+
+  const gui = new GUI();
+
+  //Base folder
+
+  const baseGui = gui.addFolder('Base').onChange(generateBase)//.close();
+
+  //Wood Base Folder
+  const woodBaseGui = baseGui.addFolder('Wood Base').close();
+
+  //Folder Base Shape
+  const baseShapeGui = woodBaseGui.addFolder('Base Shape').close();
+
+  baseShapeGui.add(baseProperties, 'visualizeBaseShape');
+  baseShapeGui.add(baseProperties, 'height', 0, 40);
+  baseShapeGui.add(baseProperties, 'width', 0, 40);
+
+  //Folder Extrude Base Shape
+
+  const extrudeBaseShapeGui = woodBaseGui.addFolder('Extrude Base Shape').close();
+
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeDepth', 1, 40, 1).name('Extrude Depth');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeWireframeView').name('Wireframe view');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeSteps', 1, 4, 1).name('Extrude Steps');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelEnabled').name('Bevel enabled');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelThickness', 0, 2).name('Bevel Thickness');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Size');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
+
+  //Folder Wood Base Textures and Materials
+
+  const textureBaseGui = woodBaseGui.addFolder('Base Textures & Materials').close();
+
+  textureBaseGui.add(baseProperties, 'textureRepeatX', 0.005, 0.15).name('Repeat X');
+  textureBaseGui.add(baseProperties, 'textureRepeatY', 0.005, 0.15).name('Repeat Y');
+  textureBaseGui.add(baseProperties, 'textureRotation', 0, 6.283).name('Rotation');
+
+  textureBaseGui.addColor(baseProperties, 'materialColor').name('Material Color');
+  textureBaseGui.add(baseProperties, 'materialRoughness', 0, 1).name('Roughness');
+  textureBaseGui.add(baseProperties, 'materialAoIntensity', 0, 15).name('Ao Intensity');
+  textureBaseGui.add(baseProperties, 'materialMetalness', 0, 1).name('Metalness');
+  textureBaseGui.add(baseProperties, 'materialReflectivity', 0, 1).name('Reflectivity');
+  textureBaseGui.add(baseProperties, 'materialclearCoat', 0, 1).name('Clear Coat');
+  textureBaseGui.add(baseProperties, 'materialclearCoatRoughness', 0, 1).name('ClearC Roughness');
+  textureBaseGui.add(baseProperties, 'materialNormalScale', -5, 5).name('NormalScale');
+  textureBaseGui.add(baseProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
+
+  //Nameplate Folder
+
+  const nameplateGui = baseGui.addFolder('Nameplate');
+
+  nameplateGui.add(nameplateProperties, 'plateDepth', 0, 5);
+  nameplateGui.add(nameplateProperties, 'wireframeView');
+
+  //Nampleate text folder
+  const nameplateTextGui = nameplateGui.addFolder('Text').close();
+
+  nameplateTextGui.add(nameplateProperties, 'nameSize', 0, 5).name('Size')
+  nameplateTextGui.add(nameplateProperties, 'nameHeight', 0, 5).name('Depth')
+  nameplateTextGui.add(nameplateProperties, 'nameCurveSegments', 1 , 10, 1).name('Curve Segments');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelEnabled').name('Bevel enabled');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelThickness', 0, 4).name('Bevel Thickness');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelSize', 0, 4).name('Bevel Size');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelOffset', 0, 4).name('Bevel Offset');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelSegments', 0, 4, 1).name('Bevel Segments');
+
+
+  //Nameplate material folder
+
+  const nameplateMaterialGui = nameplateGui.addFolder('Material')
+
+  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatX', 0, 2).name('Repeat X');
+  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatY', 0, 2).name('Repeat Y');
+  nameplateMaterialGui.add(nameplateProperties, 'textureRotation', 0, 6.283).name('Rotation');
+
+  nameplateMaterialGui.addColor(nameplateProperties, 'materialColor').name('Material Color');
+  nameplateMaterialGui.add(nameplateProperties, 'materialRoughness', 0, 1).name('Roughness');
+  nameplateMaterialGui.add(nameplateProperties, 'materialMetalness', 0, 1).name('Metalness');
+  nameplateMaterialGui.add(nameplateProperties, 'materialReflectivity', 0, 10).name('Reflectivity');
+  nameplateMaterialGui.add(nameplateProperties, 'materialNormalScale', -5, 5).name('NormalScale');
+  nameplateMaterialGui.add(nameplateProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
+  // textureRepeatX: 1, 
+  // textureRepeatY: 1, 
+  // textureRotation: 0,
+  // wireframeView: false,
+
+  // materialColor: 'Yellow',
+  // materialRoughness: 0,
+  // materialMetalness: 0, 
+  // materialReflectivity: 0.25, 
+  // materialclearCoat: 0.5,
+  // materialclearCoatRoughness: 0,
+
+  // materialAoIntensity: 5,
+  // materialNormalScale: -2,
+  // envMapIntensity: 1
+
+  const clock = new THREE.Clock();
+
+  const tick = ()=>{
+    orbitControls.update();
+
+    renderer.render(scene, camera);
+    window.requestAnimationFrame(tick);
+  }
+  tick();
 }
 
 
 
-
-//Objects 
-// const cube = new THREE.Mesh(
-//   new THREE.BoxGeometry(40, 40 ,40),
-//   baseMaterial,
-// );
-
-// scene.add(cube)
-// console.log(cube.geometry.attributes)
-// console.log(baseMesh.geometry.attributes)
-
-//cube.scale = 1
-
-camera.lookAt(new THREE.Vector3(0,0,0));
-  
-  
-//--------------------Gui 
-
-const gui = new GUI();
-
-//Base folder
-
-const baseGui = gui.addFolder('Base').onChange(generateBase)//.close();
-
-//Wood Base Folder
-const woodBaseGui = baseGui.addFolder('Wood Base').close();
-
-//Folder Base Shape
-const baseShapeGui = woodBaseGui.addFolder('Base Shape').close();
-
-baseShapeGui.add(baseProperties, 'visualizeBaseShape');
-baseShapeGui.add(baseProperties, 'height', 0, 40);
-baseShapeGui.add(baseProperties, 'width', 0, 40);
-
-//Folder Extrude Base Shape
-
-const extrudeBaseShapeGui = woodBaseGui.addFolder('Extrude Base Shape').close();
-
-extrudeBaseShapeGui.add(baseProperties, 'extrudeDepth', 1, 40, 1).name('Extrude Depth');
-extrudeBaseShapeGui.add(baseProperties, 'extrudeWireframeView').name('Wireframe view');
-extrudeBaseShapeGui.add(baseProperties, 'extrudeSteps', 1, 4, 1).name('Extrude Steps');
-extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelEnabled').name('Bevel enabled');
-extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelThickness', 0, 2).name('Bevel Thickness');
-extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Size');
-extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
-extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
-
-//Folder Wood Base Textures and Materials
-
-const textureBaseGui = woodBaseGui.addFolder('Base Textures & Materials').close();
-
-textureBaseGui.add(baseProperties, 'textureRepeatX', 0.005, 0.15).name('Repeat X');
-textureBaseGui.add(baseProperties, 'textureRepeatY', 0.005, 0.15).name('Repeat Y');
-textureBaseGui.add(baseProperties, 'textureRotation', 0, 6.283).name('Rotation');
-
-textureBaseGui.addColor(baseProperties, 'materialColor').name('Material Color');
-textureBaseGui.add(baseProperties, 'materialRoughness', 0, 1).name('Roughness');
-textureBaseGui.add(baseProperties, 'materialAoIntensity', 0, 15).name('Ao Intensity');
-textureBaseGui.add(baseProperties, 'materialMetalness', 0, 1).name('Metalness');
-textureBaseGui.add(baseProperties, 'materialReflectivity', 0, 1).name('Reflectivity');
-textureBaseGui.add(baseProperties, 'materialclearCoat', 0, 1).name('Clear Coat');
-textureBaseGui.add(baseProperties, 'materialclearCoatRoughness', 0, 1).name('ClearC Roughness');
-textureBaseGui.add(baseProperties, 'materialNormalScale', -5, 5).name('NormalScale');
-textureBaseGui.add(baseProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
-
-//Nameplate Folder
-
-const nameplateGui = baseGui.addFolder('Nameplate');
-
-nameplateGui.add(nameplateProperties, 'plateDepth', 0, 5);
-
-//Animation
-
-const clock = new THREE.Clock();
-
-const tick = ()=>{
-  orbitControls.update();
-
-  renderer.render(scene, camera);
-  window.requestAnimationFrame(tick);
-}
-tick();
 
 function generateBase(){
   //Creo la forma base y la extruyo con las anteriores funciones
   generateBaseShape();
   generateBaseMesh();
 
-  //Creo un grupo para manipular todo en conjunto de la extruccion
-  baseGroup.clear();
-  if(baseProperties.visualizeBaseShape){
+  // Elimino grupos anteriores Creo un grupo para manipular todo en conjunto de la extruccion
+  if(baseGroup){
+    baseGroup.clear();
+    scene.remove(baseGroup);
+  }
+
+  //Condiciono a si el visualizar base no esta activado entonces que no agregue al grupo
+  if(baseProperties.visualizeBaseShape){  
     baseGroup.add(baseLine);
   }
   baseGroup.add(baseMesh);
@@ -299,9 +379,43 @@ function generateBase(){
   baseGroup.rotation.x = -Math.PI/2;
 
   //Creo la placa con el nombre y el material de ambos
-  nameplateMaterial = new THREE.MeshBasicMaterial({color:'Yellow'});
+
+  //Update the textures atributes
+  Object.keys(nameplateTexture).forEach((texture)=>{
+    nameplateTexture[texture].wrapS = THREE.RepeatWrapping;
+    nameplateTexture[texture].wrapT = THREE.RepeatWrapping;
+    nameplateTexture[texture].repeat.x = nameplateProperties.textureRepeatX;
+    nameplateTexture[texture].repeat.y = nameplateProperties.textureRepeatY;
+    nameplateTexture[texture].rotation = nameplateProperties.textureRotation;
+  })
+  
+  nameplateMaterial = new THREE.MeshStandardMaterial({
+    map: nameplateTexture.color,
+    normalMap: nameplateTexture.normal,
+    metalnessMap: nameplateTexture.metalness,
+    wireframe: baseProperties.extrudeWireframeView,
+
+    color: nameplateProperties.materialColor, 
+    roughness: nameplateProperties.materialRoughness,
+    metalness: nameplateProperties.materialMetalness,
+    reflectivity: nameplateProperties.materialReflectivity, 
+    envMap:environmentMapTexture,
+    envMapIntensity: nameplateProperties.envMapIntensity,
+  });
+  nameplateMaterial.normalScale.x = nameplateProperties.materialNormalScale;
+  nameplateMaterial.normalScale.y = nameplateProperties.materialNormalScale;
   generatePlateMesh();
   generateNameMesh();
+
+  //Elimino el nameplate anterior y creo uno nuevo
+  if(nameplateGroup){
+    nameplateGroup.clear();
+    scene.remove.nameplateGroup
+  }
+  nameplateGroup.add(nameMesh);
+  nameplateGroup.add(plateMesh);
+  nameplateGroup.position.z = ((baseProperties.height/2) + (baseProperties.extrudeBevelOffset) + (baseProperties.extrudeBevelSize))
+  scene.add(nameplateGroup)
 }
 
 function generateBaseShape(){
@@ -360,7 +474,6 @@ function generateBaseMesh(){
     baseTexture[texture].repeat.x = baseProperties.textureRepeatX;
     baseTexture[texture].repeat.y = baseProperties.textureRepeatY;
     baseTexture[texture].rotation = baseProperties.textureRotation;
-
   })
 
   //Material
@@ -391,8 +504,6 @@ function generateBaseMesh(){
 function generatePlateMesh(){
   if(plateMesh){ 
     plateGeometry.dispose();
-    nameplateMaterial.dispose();
-    scene.remove(plateMesh);
   }
 
   //Update plate properties on depends the base size
@@ -405,10 +516,28 @@ function generatePlateMesh(){
   
   //Create Plate Material
   plateMesh = new THREE.Mesh(plateGeometry, nameplateMaterial);
-  scene.add(plateMesh)
 }
 
 function generateNameMesh(){
+  if(nameMesh){
+    nameGeometry.dispose();
+  }
 
+  nameGeometry = new TextGeometry('Max Santana', {
+    font: nameplateFont,
+    size: nameplateProperties.nameSize,
+    height: nameplateProperties.nameHeight,
+    curveSegments: nameplateProperties.nameCurveSegments,
+    bevelEnabled: nameplateProperties.nameBevelEnabled,
+    bevelThickness: nameplateProperties.nameBevelThickness,
+    bevelSize: nameplateProperties.nameBevelSize,
+    bevelOffset: nameplateProperties.nameBevelOffset,
+    bevelSegments: nameplateProperties.nameBevelSegments,
+  })
+
+  nameGeometry.center();
+  nameGeometry.translate(0, 0, (nameplateProperties.nameHeight/2) + (nameplateProperties.plateDepth/2))
+
+  nameMesh = new THREE.Mesh(nameGeometry, nameplateMaterial);
 }
 
