@@ -6,6 +6,8 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 import GUI from 'lil-gui';
 import { gsap } from 'gsap';
 
+
+
 THREE.ColorManagement.enabled = false
 
 
@@ -32,6 +34,7 @@ loadingManager.onError = () => {
 }
 
 const textureLoader = new THREE.TextureLoader(loadingManager);
+const cubeTextureLoader = new THREE.CubeTextureLoader(loadingManager);
 
 //Preview Texture
 const previewTexture = textureLoader.load('/resources/textures/texturePreview8x8.png');
@@ -51,13 +54,15 @@ const baseTexture = {
   roughness: textureLoader.load('/resources/textures/baseTextures/roughness_map.jpg'),
 }
 
-Object.keys(baseTexture).forEach((texture)=>{
-  baseTexture[texture].wrapS = THREE.MirroredRepeatWrapping;
-  baseTexture[texture].wrapT = THREE.MirroredRepeatWrapping;
-  baseTexture[texture].repeat.x = 0.05;
-  baseTexture[texture].repeat.y = 0.05;
-})
-
+//Enviroment Map Texture
+const environmentMapTexture = cubeTextureLoader.load([
+  'resources/textures/environmentMap/px.png',
+  'resources/textures/environmentMap/nx.png',
+  'resources/textures/environmentMap/py.png',
+  'resources/textures/environmentMap/ny.png',
+  'resources/textures/environmentMap/pz.png',
+  'resources/textures/environmentMap/nz.png',
+])
 
 //Renderer
 const canvas = document.querySelector('.experience');
@@ -98,6 +103,10 @@ orbitControls.enableDamping = true;
 const ambientLight = new THREE.AmbientLight('#ffffff', 1);
 scene.add(ambientLight);
 
+const pointLight = new THREE.PointLight('#ffffff', 1)
+pointLight.position.set(0, 10, -20)
+scene.add(pointLight);
+
 //Geometries
 
 
@@ -121,8 +130,20 @@ const baseProperties = {
   extrudeWireframeView: false,
 
   //Textures and Material
-  textureRepeatX: 0.05,
+  textureRepeatX: 0.08,
   textureRepeatY: 0.05,
+  textureRotation: (Math.PI/2),
+  
+  materialColor: '#6c5a3d',
+  materialRoughness: 0,
+  materialMetalness: 0, 
+  materialReflectivity: 0.25, 
+  materialclearCoat: 0.5,
+  materialclearCoatRoughness: 0,
+  
+  materialAoIntensity: 5,
+  materialNormalScale: -2,
+  envMapIntensity: 1
 }
 
 
@@ -166,7 +187,7 @@ const gui = new GUI();
 
 //Base folder
 
-const baseGui = gui.addFolder('Base').onFinishChange(generateBase);
+const baseGui = gui.addFolder('Base').onChange(generateBase);
 
 //Folder Base Shape
 const baseShapeGui = baseGui.addFolder('Base Shape').close();
@@ -188,12 +209,23 @@ extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Si
 extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
 extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
 
-//Folder Textures and Materials
+//Folder Base Textures and Materials
 
-const textureBaseGui = baseGui.addFolder('Textures & Materials');
+const textureBaseGui = baseGui.addFolder('Base Textures & Materials');
 
-textureBaseGui.add(baseProperties, 'textureRepeatX', );
-textureBaseGui.add(baseProperties, 'textureRepeatY', );
+textureBaseGui.add(baseProperties, 'textureRepeatX', 0.005, 0.15).name('Repeat X');
+textureBaseGui.add(baseProperties, 'textureRepeatY', 0.005, 0.15).name('Repeat Y');
+textureBaseGui.add(baseProperties, 'textureRotation', 0, 6.283).name('Rotation');
+
+textureBaseGui.addColor(baseProperties, 'materialColor').name('Material Color');
+textureBaseGui.add(baseProperties, 'materialRoughness', 0, 1).name('Roughness');
+textureBaseGui.add(baseProperties, 'materialAoIntensity', 0, 15).name('Ao Intensity');
+textureBaseGui.add(baseProperties, 'materialMetalness', 0, 1).name('Metalness');
+textureBaseGui.add(baseProperties, 'materialReflectivity', 0, 1).name('Reflectivity');
+textureBaseGui.add(baseProperties, 'materialclearCoat', 0, 1).name('Clear Coat');
+textureBaseGui.add(baseProperties, 'materialclearCoatRoughness', 0, 1).name('ClearC Roughness');
+textureBaseGui.add(baseProperties, 'materialNormalScale', -5, 5).name('NormalScale');
+textureBaseGui.add(baseProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
 //Animation
 
 const clock = new THREE.Clock();
@@ -209,7 +241,7 @@ tick();
 function generateBase(){
   //Creo la forma base y la extruyo con las anteriores funciones
   generateBaseShape();
-  extrudeBaseGoemetry();
+  generateBaseMesh();
 
   //Creo un grupo para manipular todo en conjunto 
   baseGroup.clear();
@@ -251,12 +283,13 @@ function generateBaseShape(){
   }
 }
 
-function extrudeBaseGoemetry(){
+function generateBaseMesh(){
   if(baseMesh){ //Elimino en memoria la linea anterior creada
     baseGeometry.dispose();
     baseMaterial.dispose();
   }
 
+  //Create Geometry
   baseGeometry = new THREE.ExtrudeGeometry(baseShape, {
     steps: baseProperties.extrudeSteps,
     depth: baseProperties.extrudeDepth,
@@ -266,12 +299,40 @@ function extrudeBaseGoemetry(){
     bevelSegments: baseProperties.extrudeBevelSegments,
     bevelSize: baseProperties.extrudeBevelSize,
   });
+  
+    baseGeometry.center();
 
-  baseGeometry.center();
-  baseGeometry.translate
-  baseMaterial  = new THREE.MeshStandardMaterial({
+  //Update the textures atributes
+  Object.keys(baseTexture).forEach((texture)=>{
+    baseTexture[texture].wrapS = THREE.RepeatWrapping;
+    baseTexture[texture].wrapT = THREE.RepeatWrapping;
+    baseTexture[texture].repeat.x = baseProperties.textureRepeatX;
+    baseTexture[texture].repeat.y = baseProperties.textureRepeatY;
+    baseTexture[texture].rotation = baseProperties.textureRotation;
+
+  })
+
+  //Material
+  baseMaterial  = new THREE.MeshPhysicalMaterial({
     map: baseTexture.color,
+    normalMap: baseTexture.normal,
+    aoMap: baseTexture.ambientOcclusion,
+    roughnessMap: baseTexture.roughness,
     wireframe: baseProperties.extrudeWireframeView,
+
+    color: baseProperties.materialColor, 
+    roughness: baseProperties.materialRoughness,
+    aoMapIntensity: baseProperties.materialAoIntensity,
+    metalness: baseProperties.materialMetalness,
+    reflectivity: baseProperties.materialReflectivity, 
+    clearcoat: baseProperties.materialclearCoat,
+    clearcoatRoughness: baseProperties.materialclearCoatRoughness,
+    envMap:environmentMapTexture,
+    envMapIntensity: baseProperties.envMapIntensity,
   });
+
+  baseMaterial.normalScale.x = baseProperties.materialNormalScale
+  baseMaterial.normalScale.y = baseProperties.materialNormalScale
+
   baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
 }

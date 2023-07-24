@@ -1,19 +1,19 @@
 {
-  "prompt_text": "teak wood fine, extreme fine details, close up, horizontal grains",
+  "prompt_text": "Unsaturated and dark brown Ipe wood with some light tones",
   "patch": {
     "ext": "png",
     "dtype": "uint8",
     "width": 512,
     "height": 512,
-    "url": "https://static-dev.withpoly.com/v3-voronoi/textures/patches/a9690ae4-6dad-48d4-b68f-085b4e7153e7.png",
-    "patch_id": "TqhPPnjMpr"
+    "url": "https://static-dev.withpoly.com/v3-voronoi/textures/patches/647ade19-ef0b-4383-89a9-896c9b2ae70f.png",
+    "patch_id": "AWUZk7QR7e"
   },
-  "seamless_prompt_text": "teak wood fine, extreme fine details, close up, horizontal grains",
+  "seamless_prompt_text": "Unsaturated and dark brown Ipe wood with some light tones",
   "seamless_patch_scale": 0.8,
-  "upscale_prompt_text": "teak wood fine, extreme fine details, close up, horizontal grains",
+  "upscale_prompt_text": "Unsaturated and dark brown Ipe wood with some light tones",
   "upscale_resolution": 4096,
   "is_seamless": true,
-  "pbr_mode": "shiny",
+  "pbr_mode": "polished",
   "pbr_generate_color": true,
   "pbr_generate_normal": true,
   "pbr_generate_height": true,
