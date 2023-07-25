@@ -87,6 +87,9 @@ const goldTexture = {
   normal: textureLoader.load('/resources/textures/goldTexture/normal_map.jpg'),
 }
 
+//Height map
+const heightMap = textureLoader.load('/resources/textures/heightMapTexture/heightMapTexture.png')
+
 
 //----------------------------------------------Init project
 const baseProperties = {
@@ -167,8 +170,8 @@ const spherePropierties = {
   wireframeView: false,
   color: '#ffffff',
   metalness: 0.9,
-  roughness: 0.3,
-  envMapIntensity: 0.3,
+  roughness: 0.4,
+  envMapIntensity: 0.6,
   clearcoat: 1,
   transparent: true,
   transmission: 0,
@@ -178,6 +181,13 @@ const spherePropierties = {
   ior: 0.9
 }
 
+const terrainProperties = {
+  //Height map
+  repeatX: 1,
+  repeatY: 1,
+  rotation:0,
+  height: 6,
+}
 
 //Base
 
@@ -206,7 +216,10 @@ let sphereGeometry = null;
 let sphereMaterial = null;
 let sphereMesh = null;
 
-
+//Terrain
+let terrainGeometry = null;
+let terrainMaterial = null;
+let terrainMesh = null;
 //Scene 
 const scene = new THREE.Scene();
 
@@ -263,18 +276,27 @@ function initProject(){
 
   //Base variables 
 
-  generateBase();
-  generateSphere();
+  // generateBase();
+  // generateSphere();
+  generateTerrain();
 
+  scene.background = new THREE.Color('#85C1E9')
+  scene.background = environmentMapTexture
 
 
   //Objects 
   // const cube = new THREE.Mesh(
-  //   new THREE.BoxGeometry(40, 40 ,40),
-  //   baseMaterial,
-  // );
+  //   new THREE.BoxGeometry(5, 5 ,5),
+  //   new THREE.MeshBasicMaterial({
+
+  //     color: 'white',
+  //     map: environmentMapTexture,
+  //   })
+  // ); 
+  // cube.position.set(0, 15, 0)
 
   // scene.add(cube)
+  
   // console.log(cube.geometry.attributes)
   // console.log(baseMesh.geometry.attributes)
 
@@ -289,7 +311,7 @@ function initProject(){
 
   //Base folder
 
-  const baseGui = gui.addFolder('Base').onFinishChange(generateBase)//.close();
+  const baseGui = gui.addFolder('Base').onFinishChange(generateBase).close();
 
   //Wood Base Folder
   const woodBaseGui = baseGui.addFolder('Wood Base').close();
@@ -393,6 +415,15 @@ function initProject(){
   sphereMaterialGui.add(spherePropierties, 'reflectivity', 0, 1);
   sphereMaterialGui.add(spherePropierties, 'refractionRatio', 0, 1);
   sphereMaterialGui.add(spherePropierties, 'ior', 0, 1);
+
+  //Terrain Folder
+
+  const terrainGui = gui.addFolder('Terrain').onChange(generateTerrain);
+
+  terrainGui.add(terrainProperties, 'repeatX', 0, 2)
+  terrainGui.add(terrainProperties, 'repeatY', 0, 2)
+  terrainGui.add(terrainProperties, 'rotation', 0, 6.283)
+  terrainGui.add(terrainProperties, 'height', -10, 10)
 
 
 
@@ -640,4 +671,39 @@ function generateSphere(){
   sphereMesh.position.y = (spherePropierties.radius) - baseProperties.extrudeDepth/2 ;
 
   scene.add(sphereMesh);
+}
+
+function generateTerrain(){
+  if(terrainMesh){
+    terrainGeometry.dispose();
+    terrainMaterial.dispose();
+    scene.remove(terrainMesh);
+  }
+
+  terrainGeometry = new THREE.PlaneGeometry(20, 20, 40, 40)
+  
+
+  // for (let i = 0; i < terrainGeometry.attributes.position.array.length/3+1; i++){
+  //   const x = i*3 + 0
+  //   const y = i*3 + 2
+  //   const z = i*3 + 1
+  //   terrainGeometry.attributes.position.array[y] = Math.random()
+  // }
+  heightMap.wrapS = THREE.RepeatWrapping
+  heightMap.wrapT = THREE.RepeatWrapping
+  heightMap.repeat.x = terrainProperties.repeatX
+  heightMap.repeat.y = terrainProperties.repeatY
+  heightMap.rotation = terrainProperties.rotation
+  
+  terrainMaterial = new THREE.MeshStandardMaterial({
+    wireframe: true,
+    //side: THREE.DoubleSide.
+    displacementMap: heightMap,
+    displacementScale: terrainProperties.height,
+  })
+
+  terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+  terrainMesh.rotation.x = -(Math.PI/2)
+  scene.add(terrainMesh)
+
 }
