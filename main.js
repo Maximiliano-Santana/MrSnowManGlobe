@@ -147,7 +147,7 @@ const nameplateProperties = {
   materialReflectivity: 0.25, 
 
   materialAoIntensity: 5,
-  materialNormalScale: 1,
+  materialNormalScale: -0.5,
   envMapIntensity: 1
 }
 
@@ -297,7 +297,7 @@ function initProject(){
 
   //Nameplate Folder
 
-  const nameplateGui = baseGui.addFolder('Nameplate');
+  const nameplateGui = baseGui.addFolder('Nameplate').close();
 
   nameplateGui.add(nameplateProperties, 'plateDepth', 0, 5);
   nameplateGui.add(nameplateProperties, 'wireframeView');
@@ -317,7 +317,7 @@ function initProject(){
 
   //Nameplate material folder
 
-  const nameplateMaterialGui = nameplateGui.addFolder('Material')
+  const nameplateMaterialGui = nameplateGui.addFolder('Material').close();
 
   nameplateMaterialGui.add(nameplateProperties, 'textureRepeatX', 0, 2).name('Repeat X');
   nameplateMaterialGui.add(nameplateProperties, 'textureRepeatY', 0, 2).name('Repeat Y');
