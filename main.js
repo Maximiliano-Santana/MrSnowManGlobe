@@ -58,6 +58,11 @@ const baseTexture = {
   roughness: textureLoader.load('/resources/textures/baseTextures/roughness_map.jpg'),
 }
 
+//Glass Texture
+const  glassTexture = {
+  roughness: textureLoader.load('/resources/textures/glassTexture/fingertips.jpg')
+}
+
 //Enviroment Map Texture
 const environmentMapTexture = cubeTextureLoader.load([
   'resources/textures/environmentMap/px.png',
@@ -69,19 +74,17 @@ const environmentMapTexture = cubeTextureLoader.load([
 ]);
 
 //Nameplate Text 
-const fontUrl = '/node_modules/three/examples/fonts/gentilis_regular.typeface.json';
+const fontUrl = '/resources/fonts/Shannia_Bold (1).json';
 let nameplateFont = null;
 const nameFont = fontLoader.load(fontUrl, (font)=>{
   nameplateFont = font;
 });
 
 //Nameplate Texture
-const nameplateTexture = {
-  color: textureLoader.load('/resources/textures/nameplateTextures/color_map.jpg'),
-  ambientOcclusion: textureLoader.load('/resources/textures/nameplateTextures/ao_map.jpg'),
-  displacement: textureLoader.load('/resources/textures/nameplateTextures/displacement_map.jpg'),
-  normal: textureLoader.load('/resources/textures/nameplateTextures/normal_map_opengl.jpg'),
-  metalness: textureLoader.load('/resources/textures/nameplateTextures/metalness_map.jpg'),
+const goldTexture = {
+  color: textureLoader.load('/resources/textures/goldTexture/color_map.png'),
+  roughness: textureLoader.load('/resources/textures/goldTexture/roughness_map.png'),
+  normal: textureLoader.load('/resources/textures/goldTexture/normal_map.jpg'),
 }
 
 
@@ -99,7 +102,7 @@ const baseProperties = {
 	extrudeBevelThickness: 1,
 	extrudeBevelSize: 1,
 	extrudeBevelOffset: 0,
-	extrudeBevelSegments: 3,
+	extrudeBevelSegments: 7,
   extrudeWireframeView: false,
 
   //Textures and Material
@@ -126,19 +129,19 @@ const nameplateProperties = {
   plateDepth: 0.25,
   
   //Name properties
-  nameSize: 2.5,
+  nameSize: 2,
   nameHeight: 0.25,
-  nameCurveSegments: 2,
-  nameBevelEnabled: false,
-  nameBevelThickness: 1,
-  nameBevelSize: 0,
+  nameCurveSegments: 7,
+  nameBevelEnabled: true,
+  nameBevelThickness: 0.02,
+  nameBevelSize: 0.025,
   nameBevelOffset: 0, 
-  nameBevelSegments: 5,
+  nameBevelSegments: 3,
   
   //Material propierties
-  textureRepeatX: 1, 
+  textureRepeatX: 2, 
   textureRepeatY: 1, 
-  textureRotation: 0,
+  textureRotation: (Math.PI/2),
   wireframeView: false,
 
   materialColor: '#ffffff',
@@ -147,8 +150,12 @@ const nameplateProperties = {
   materialReflectivity: 0.25, 
 
   materialAoIntensity: 5,
-  materialNormalScale: -0.5,
+  materialNormalScale: -5,
   envMapIntensity: 1
+}
+
+const shperePropierties = { 
+
 }
 
 let baseShape = null;
@@ -228,6 +235,7 @@ function initProject(){
   //Base variables 
 
   generateBase();
+  generateSphere();
 
 
 
@@ -252,7 +260,7 @@ function initProject(){
 
   //Base folder
 
-  const baseGui = gui.addFolder('Base').onChange(generateBase)//.close();
+  const baseGui = gui.addFolder('Base').onFinishChange(generateBase)//.close();
 
   //Wood Base Folder
   const woodBaseGui = baseGui.addFolder('Wood Base').close();
@@ -319,15 +327,15 @@ function initProject(){
 
   const nameplateMaterialGui = nameplateGui.addFolder('Material').close();
 
-  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatX', 0, 2).name('Repeat X');
-  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatY', 0, 2).name('Repeat Y');
+  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatX', 0, 10).name('Repeat X');
+  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatY', 0, 10).name('Repeat Y');
   nameplateMaterialGui.add(nameplateProperties, 'textureRotation', 0, 6.283).name('Rotation');
 
   nameplateMaterialGui.addColor(nameplateProperties, 'materialColor').name('Material Color');
   nameplateMaterialGui.add(nameplateProperties, 'materialRoughness', 0, 1).name('Roughness');
   nameplateMaterialGui.add(nameplateProperties, 'materialMetalness', 0, 1).name('Metalness');
   nameplateMaterialGui.add(nameplateProperties, 'materialReflectivity', 0, 10).name('Reflectivity');
-  nameplateMaterialGui.add(nameplateProperties, 'materialNormalScale', -5, 5).name('NormalScale');
+  nameplateMaterialGui.add(nameplateProperties, 'materialNormalScale', -10, 10).name('NormalScale');
   nameplateMaterialGui.add(nameplateProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
   // textureRepeatX: 1, 
   // textureRepeatY: 1, 
@@ -381,29 +389,31 @@ function generateBase(){
   //Creo la placa con el nombre y el material de ambos
 
   //Update the textures atributes
-  Object.keys(nameplateTexture).forEach((texture)=>{
-    nameplateTexture[texture].wrapS = THREE.RepeatWrapping;
-    nameplateTexture[texture].wrapT = THREE.RepeatWrapping;
-    nameplateTexture[texture].repeat.x = nameplateProperties.textureRepeatX;
-    nameplateTexture[texture].repeat.y = nameplateProperties.textureRepeatY;
-    nameplateTexture[texture].rotation = nameplateProperties.textureRotation;
+  Object.keys(goldTexture).forEach((texture)=>{
+    goldTexture[texture].wrapS = THREE.RepeatWrapping;
+    goldTexture[texture].wrapT = THREE.RepeatWrapping;
+    goldTexture[texture].repeat.x = nameplateProperties.textureRepeatX;
+    goldTexture[texture].repeat.y = nameplateProperties.textureRepeatY;
+    goldTexture[texture].rotation = nameplateProperties.textureRotation;
   })
   
-  nameplateMaterial = new THREE.MeshStandardMaterial({
-    map: nameplateTexture.color,
-    normalMap: nameplateTexture.normal,
-    metalnessMap: nameplateTexture.metalness,
-    wireframe: baseProperties.extrudeWireframeView,
 
-    color: nameplateProperties.materialColor, 
-    roughness: nameplateProperties.materialRoughness,
-    metalness: nameplateProperties.materialMetalness,
-    reflectivity: nameplateProperties.materialReflectivity, 
+  nameplateMaterial = new THREE.MeshStandardMaterial({
+    map: goldTexture.color,
+    roughnessMap: goldTexture.roughness,
+    normalMap: goldTexture.normal,
     envMap:environmentMapTexture,
     envMapIntensity: nameplateProperties.envMapIntensity,
+
+    wireframe: baseProperties.extrudeWireframeView,
+    color: nameplateProperties.materialColor, 
+    metalness: nameplateProperties.materialMetalness,
+    reflectivity: nameplateProperties.materialReflectivity, 
   });
+
   nameplateMaterial.normalScale.x = nameplateProperties.materialNormalScale;
   nameplateMaterial.normalScale.y = nameplateProperties.materialNormalScale;
+  
   generatePlateMesh();
   generateNameMesh();
 
@@ -541,3 +551,6 @@ function generateNameMesh(){
   nameMesh = new THREE.Mesh(nameGeometry, nameplateMaterial);
 }
 
+function generateSphere(){
+  
+}
