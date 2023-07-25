@@ -154,9 +154,32 @@ const nameplateProperties = {
   envMapIntensity: 1
 }
 
-const shperePropierties = { 
-
+const spherePropierties = { 
+  //Geometry options
+  radius: 11,
+  subdivisions: 40,
+  
+  //Material options
+  textureRepeatX: 2.5,
+  textureRepeatY: 2.5,
+  textureRotation: 0,
+  
+  wireframeView: false,
+  color: '#ffffff',
+  metalness: 0.9,
+  roughness: 0.3,
+  envMapIntensity: 0.3,
+  clearcoat: 1,
+  transparent: true,
+  transmission: 0,
+  opacity: 0.25,
+  reflectivity: 0.2,
+  refractionRatio: 0.985,
+  ior: 0.9
 }
+
+
+//Base
 
 let baseShape = null;
 
@@ -177,6 +200,12 @@ let nameplateMaterial = null
 
 let baseGroup = new THREE.Group();
 let nameplateGroup = new THREE.Group();
+
+//Sphere
+let sphereGeometry = null;
+let sphereMaterial = null;
+let sphereMesh = null;
+
 
 //Scene 
 const scene = new THREE.Scene();
@@ -220,9 +249,9 @@ function initProject(){
   const ambientLight = new THREE.AmbientLight('#ffffff', 1);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight('#ffffff', 1)
-  pointLight.position.set(0, 10, -20)
-  scene.add(pointLight);
+  // const pointLight = new THREE.PointLight('#ffffff', 1)
+  // pointLight.position.set(0, 10, -20)
+  // scene.add(pointLight);
 
   //Geometries
 
@@ -337,21 +366,35 @@ function initProject(){
   nameplateMaterialGui.add(nameplateProperties, 'materialReflectivity', 0, 10).name('Reflectivity');
   nameplateMaterialGui.add(nameplateProperties, 'materialNormalScale', -10, 10).name('NormalScale');
   nameplateMaterialGui.add(nameplateProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
-  // textureRepeatX: 1, 
-  // textureRepeatY: 1, 
-  // textureRotation: 0,
-  // wireframeView: false,
 
-  // materialColor: 'Yellow',
-  // materialRoughness: 0,
-  // materialMetalness: 0, 
-  // materialReflectivity: 0.25, 
-  // materialclearCoat: 0.5,
-  // materialclearCoatRoughness: 0,
+  //Sphere folder
 
-  // materialAoIntensity: 5,
-  // materialNormalScale: -2,
-  // envMapIntensity: 1
+  const sphereGui = gui.addFolder('Sphere').onChange(generateSphere).close();
+
+  sphereGui.add(spherePropierties, 'radius', 0, 30);
+  sphereGui.add(spherePropierties, 'subdivisions', 0, 100);
+  sphereGui.add(spherePropierties, 'wireframeView')
+  
+  //Sphere Material folder
+  
+  const sphereMaterialGui = sphereGui.addFolder('Material').close();
+  
+  sphereMaterialGui.add(spherePropierties, 'textureRepeatX', 0, 6).name('Repeat X');
+  sphereMaterialGui.add(spherePropierties, 'textureRepeatY', 0, 6).name('Repeat Y');
+  sphereMaterialGui.add(spherePropierties, 'textureRotation', 0, 6.283).name('Rotation');
+  sphereMaterialGui.addColor(spherePropierties, 'color', 0, 100);
+  sphereMaterialGui.add(spherePropierties, 'metalness', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'roughness', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'envMapIntensity', 0, 5);
+  sphereMaterialGui.add(spherePropierties, 'clearcoat', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'transparent');
+  sphereMaterialGui.add(spherePropierties, 'transmission', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'opacity', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'reflectivity', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'refractionRatio', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'ior', 0, 1);
+
+
 
   const clock = new THREE.Clock();
 
@@ -552,5 +595,49 @@ function generateNameMesh(){
 }
 
 function generateSphere(){
-  
+  if(sphereMesh){
+    sphereGeometry.dispose();
+    sphereMaterial.dispose();
+    scene.remove(sphereMesh);
+  }
+
+  sphereGeometry = new THREE.SphereGeometry(
+    spherePropierties.radius, 
+    spherePropierties.subdivisions, 
+    spherePropierties.subdivisions
+  );
+
+  //Update textures properties 
+  Object.keys(glassTexture).forEach((texture)=>{
+    glassTexture[texture].wrapS = THREE.RepeatWrapping;
+    glassTexture[texture].wrapT = THREE.RepeatWrapping;
+    glassTexture[texture].repeat.x = spherePropierties.textureRepeatX;
+    glassTexture[texture].repeat.y = spherePropierties.textureRepeatY;
+    glassTexture[texture].rotation = spherePropierties.textureRotation;
+  })
+
+  sphereMaterial = new THREE.MeshPhysicalMaterial({
+    envMap: environmentMapTexture,
+    roughnessMap: glassTexture.roughness,
+
+    color: spherePropierties.color,
+    wireframe: spherePropierties.wireframeView,
+    metalness: spherePropierties.metalness,
+    roughness: spherePropierties.roughness,
+    envMapIntensity: spherePropierties.envMapIntensity,
+    clearcoat: spherePropierties.clearcoat,
+    transparent: spherePropierties.transparent,
+    transmission: spherePropierties.transmission,
+    opacity: spherePropierties.opacity,
+    reflectivity: spherePropierties.reflectivity,
+    refractionRatio: spherePropierties.refractionRatio,
+    ior: spherePropierties.ior,
+    envMapIntensity: spherePropierties.envMapIntensity
+  });
+
+  sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+
+  sphereMesh.position.y = (spherePropierties.radius) - baseProperties.extrudeDepth/2 ;
+
+  scene.add(sphereMesh);
 }
