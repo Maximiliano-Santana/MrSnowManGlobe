@@ -101,6 +101,9 @@ alphaTerrainMap.generateMipmaps = false;
 const alphaSphereMap = textureLoader.load('/resources/textures/sphereAlphaTexture/sphereAlphaTexture.png');
 alphaSphereMap.generateMipmaps = false;
 
+//Snow Flakes texture 
+const snowFlakeTexture = textureLoader.load('/resources/textures/snowFlakeTexture/snowFlakeTexture.png');
+
 //----------------------------------------------Init project
 const baseProperties = {
   //BaseShape Properties
@@ -196,8 +199,13 @@ const terrainProperties = {
   repeatX: 1.016,
   repeatY: 1.06,
   rotation:0,
-  height: 4.6,
+  height: 14,
   wireframeView: false,
+}
+
+const snowFlakesProperties = {
+  //
+  count: 400,
 }
 
 //Base
@@ -231,6 +239,16 @@ let sphereMesh = null;
 let terrainGeometry = null;
 let terrainMaterial = null;
 let terrainMesh = null;
+
+let fillTerrainGeometry = null;
+let fillTerrainMaterial = null;
+let fillTerrainMesh = null;
+
+//Snow flakes
+let snowFlakesGeometry = null;
+let snowFlakesMaterial = null;
+let snowFlakesMesh = null;
+
 //Scene 
 const scene = new THREE.Scene();
 
@@ -282,11 +300,10 @@ function initProject(){
   // scene.add(pointLight, pointLightHelper);
 
   const softLight = new THREE.RectAreaLight('#ffffff', 1.5, 10, 10);
-  const rectAreaLightHelper = new RectAreaLightHelper(softLight);
   softLight.position.y = 15
   softLight.rotation.x = -Math.PI/2;
 
-  scene.add(softLight, rectAreaLightHelper)
+  scene.add(softLight)
 
   //Geometries
 
@@ -300,6 +317,7 @@ function initProject(){
   generateBase();
   generateSphere();
   generateTerrain();
+  genearateSnowFlakes();
 
   scene.background = new THREE.Color('#85C1E9')
   scene.background = environmentMapTexture
@@ -444,15 +462,47 @@ function initProject(){
   terrainGui.add(terrainProperties, 'repeatX', 0, 2)
   terrainGui.add(terrainProperties, 'repeatY', 0, 2)
   terrainGui.add(terrainProperties, 'rotation', 0, 6.283)
-  terrainGui.add(terrainProperties, 'height', -10, 10)
+  terrainGui.add(terrainProperties, 'height', -10, 100)
   terrainGui.add(terrainProperties, 'wireframeView')
-
 
 
   const clock = new THREE.Clock();
 
   const tick = ()=>{
     orbitControls.update();
+
+    for (let i = 0; i < snowFlakesProperties.count; i++){
+      const x = i*3+0
+      const y = i*3+1
+      const z = i*3+2
+
+ 
+
+      const vector1 = new THREE.Vector3()
+      vector1.x = snowFlakesGeometry.attributes.position.array[x];
+      vector1.y = snowFlakesGeometry.attributes.position.array[y];
+      vector1.z = snowFlakesGeometry.attributes.position.array[z];
+      
+
+
+      
+      const distance = vector1.distanceTo(sphereMesh.position);
+      
+      
+      if(distance > (spherePropierties.radius-1)*1.5){
+        // do{
+          const newPosition = generateRandomPositionInsideSphere(spherePropierties.radius);
+          snowFlakesGeometry.attributes.position.array[x] = newPosition.x
+          snowFlakesGeometry.attributes.position.array[y] = newPosition.y
+          snowFlakesGeometry.attributes.position.array[z] = newPosition.z
+        // }while(snowFlakesGeometry.attributes.position.array[y] < 5)
+
+      }
+      snowFlakesGeometry.attributes.position.array[y] -= 0.005
+    }
+    snowFlakesMesh.rotation.y += 0.0005
+    snowFlakesGeometry.attributes.position.needsUpdate = true;
+
 
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
@@ -702,10 +752,14 @@ function generateTerrain(){
     terrainGeometry.dispose();
     terrainMaterial.dispose();
     scene.remove(terrainMesh);
+
+    fillTerrainGeometry.dispose();
+    fillTerrainMaterial.dispose();
+    scene.remove(fillTerrainMesh)
   }
 
   
-  terrainGeometry = new THREE.PlaneGeometry(20, 20, 30, 30)
+  terrainGeometry = new THREE.PlaneGeometry(20, 20, 25, 25)
   
   // for (let i = 0; i < terrainGeometry.attributes.position.array.length/3+1; i++){
   //   const x = i*3 + 0
@@ -740,7 +794,76 @@ function generateTerrain(){
 
   terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.rotation.x = -(Math.PI/2)
-  terrainMesh.position.set(0, 4.25, 0);
+  terrainMesh.position.set(0, 4.08, 0);
   scene.add(terrainMesh)
 
+  fillTerrainGeometry = new THREE.SphereGeometry(spherePropierties.radius-0.2, 40, 40);
+
+  alphaSphereMap.repeat.x = 0.81
+  alphaSphereMap.repeat.y = 0.81
+
+  fillTerrainMaterial = new THREE.MeshStandardMaterial({
+    wireframe: terrainProperties.wireframeView,
+    color: '#E5F5FF',
+    transparent: true,
+    alphaMap: alphaSphereMap,
+  });
+  fillTerrainMaterial.depthWrite = false;
+
+  fillTerrainMesh = new THREE.Mesh(
+    fillTerrainGeometry,
+    fillTerrainMaterial,
+  )
+  fillTerrainMesh.position.copy(sphereMesh.position)
+  scene.add(fillTerrainMesh);
+}
+
+function genearateSnowFlakes(){
+  const snowFlakesPositionArray = new Float32Array(snowFlakesProperties.count*3);
+  for (let i = 0; i < snowFlakesProperties.count; i++){
+    const x = i*3+0
+    const y = i*3+2
+    const z = i*3+1
+    const position = generateRandomPositionInsideSphere(spherePropierties.radius-0.5);
+    snowFlakesPositionArray[x] = position.x;
+    snowFlakesPositionArray[y] = position.y;
+    snowFlakesPositionArray[z] = position.z;
+  }
+
+  const snowFlakesPositionAttribute = new THREE.BufferAttribute(snowFlakesPositionArray, 3);
+
+  snowFlakesGeometry = new THREE.BufferGeometry();
+  snowFlakesGeometry.setAttribute('position', snowFlakesPositionAttribute);
+
+  snowFlakesMaterial = new THREE.PointsMaterial({
+    size: 0.7,
+    sizeAttenuation: true,
+    map: snowFlakeTexture,
+    transparent: true, 
+    alphaMap: snowFlakeTexture,
+  })
+
+  snowFlakesMaterial.alphaTest = 0.01;
+  snowFlakesMaterial.depthWrite = false;
+  
+  snowFlakesMesh = new THREE.Points(snowFlakesGeometry, snowFlakesMaterial);
+  snowFlakesMesh.position.copy(sphereMesh.position)
+  scene.add(snowFlakesMesh)
+
+  console.log(snowFlakesMesh)
+}
+
+function generateRandomPositionInsideSphere(radius) {
+  const phi = Math.random() * Math.PI * 2; // Ángulo alrededor del eje Y (0 a 2π)
+  const costheta = Math.random() * 2 - 1; // Valor entre -1 y 1
+  const u = Math.random(); // Valor entre 0 y 1
+  const theta = Math.acos(costheta); // Ángulo respecto al eje Y (0 a π)
+  const r = radius * Math.cbrt(u); // Aplicamos la distancia radial para distribuir las partículas uniformemente en el volumen de la esfera
+
+  // Coordenadas cartesianas
+  const x = r * Math.sin(theta) * Math.cos(phi);
+  const y = r * Math.sin(theta) * Math.sin(phi);
+  const z = r * Math.cos(theta);
+
+  return { x, y, z };
 }
