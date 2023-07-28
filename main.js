@@ -12,6 +12,8 @@ import { gsap } from 'gsap';
 
 
 
+console.time('three')
+
 //Sizes 
 const sizes = {
   width: window.innerWidth,
@@ -93,16 +95,27 @@ const goldTexture = {
 
 //Height map
 const heightMap = textureLoader.load('/resources/textures/heightMapTexture/heightMapTexture.png');
+heightMap.generateMipmaps = false;
+heightMap.magFilter = THREE.NearestFilter  
+heightMap.minFilter = THREE.NearestFilter
+
 //Terrain alpha map
 const alphaTerrainMap = textureLoader.load('/resources/textures/alphaTerrainTexture/alphaTerrainTexture2K.png');
 alphaTerrainMap.generateMipmaps = false;
+alphaTerrainMap.magFilter = THREE.NearestFilter  
+alphaTerrainMap.minFilter = THREE.NearestFilter
 
 //Sphere alpha texture
 const alphaSphereMap = textureLoader.load('/resources/textures/sphereAlphaTexture/sphereAlphaTexture.png');
 alphaSphereMap.generateMipmaps = false;
+alphaSphereMap.magFilter = THREE.NearestFilter  
+alphaSphereMap.minFilter = THREE.NearestFilter
 
 //Snow Flakes texture 
 const snowFlakeTexture = textureLoader.load('/resources/textures/snowFlakeTexture/snowFlakeTexture.png');
+snowFlakeTexture.generateMipmaps = false;
+snowFlakeTexture.magFilter = THREE.NearestFilter  
+snowFlakeTexture.minFilter = THREE.NearestFilter
 
 //----------------------------------------------Init project
 const baseProperties = {
@@ -205,7 +218,7 @@ const terrainProperties = {
 
 const snowFlakesProperties = {
   //
-  count: 400,
+  count: 200,
 }
 
 //Base
@@ -507,6 +520,7 @@ function initProject(){
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
   }
+  console.timeEnd('three')
   tick();
 }
 
@@ -794,13 +808,13 @@ function generateTerrain(){
 
   terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.rotation.x = -(Math.PI/2)
-  terrainMesh.position.set(0, 4.08, 0);
+  terrainMesh.position.set(0, 4.65, 0);
   scene.add(terrainMesh)
 
-  fillTerrainGeometry = new THREE.SphereGeometry(spherePropierties.radius-0.2, 40, 40);
+  fillTerrainGeometry = new THREE.SphereGeometry(spherePropierties.radius-0.3, 40, 40);
 
-  alphaSphereMap.repeat.x = 0.81
-  alphaSphereMap.repeat.y = 0.81
+  alphaSphereMap.repeat.x = 0.01
+  alphaSphereMap.repeat.y = 1.054
 
   fillTerrainMaterial = new THREE.MeshStandardMaterial({
     wireframe: terrainProperties.wireframeView,
@@ -808,6 +822,7 @@ function generateTerrain(){
     transparent: true,
     alphaMap: alphaSphereMap,
   });
+  fillTerrainMaterial.alphaTest = 0.01
   fillTerrainMaterial.depthWrite = false;
 
   fillTerrainMesh = new THREE.Mesh(
