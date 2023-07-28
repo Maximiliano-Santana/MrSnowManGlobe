@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js'
+
 
 import GUI from 'lil-gui';
 import { gsap } from 'gsap';
@@ -87,9 +89,17 @@ const goldTexture = {
   normal: textureLoader.load('/resources/textures/goldTexture/normal_map.jpg'),
 }
 
-//Height map
-const heightMap = textureLoader.load('/resources/textures/heightMapTexture/heightMapTexture.png')
+//Terrain
 
+//Height map
+const heightMap = textureLoader.load('/resources/textures/heightMapTexture/heightMapTexture.png');
+//Terrain alpha map
+const alphaTerrainMap = textureLoader.load('/resources/textures/alphaTerrainTexture/alphaTerrainTexture2K.png');
+alphaTerrainMap.generateMipmaps = false;
+
+//Sphere alpha texture
+const alphaSphereMap = textureLoader.load('/resources/textures/sphereAlphaTexture/sphereAlphaTexture.png');
+alphaSphereMap.generateMipmaps = false;
 
 //----------------------------------------------Init project
 const baseProperties = {
@@ -183,10 +193,11 @@ const spherePropierties = {
 
 const terrainProperties = {
   //Height map
-  repeatX: 1,
-  repeatY: 1,
+  repeatX: 1.016,
+  repeatY: 1.06,
   rotation:0,
-  height: 6,
+  height: 4.6,
+  wireframeView: false,
 }
 
 //Base
@@ -252,32 +263,42 @@ function initProject(){
 
   //Camera 
   const camera = new THREE.PerspectiveCamera(50, sizes.width/sizes.height  , 0.1, 100);
-  camera.position.set(0, 20, 50);
-
+  camera.position.set(0, 15, 40);
+  
+  
   //Controls
   const orbitControls = new OrbitControls(camera, canvas);
   orbitControls.enableDamping = true;
+  orbitControls.target.set(0 , 4.5, 0)
+
 
   //Lights 
-  const ambientLight = new THREE.AmbientLight('#ffffff', 1);
+  const ambientLight = new THREE.AmbientLight('#ffffff', 0.5);
   scene.add(ambientLight);
 
   // const pointLight = new THREE.PointLight('#ffffff', 1)
-  // pointLight.position.set(0, 10, -20)
-  // scene.add(pointLight);
+  // const pointLightHelper = new THREE.PointLightHelper(pointLight)
+  // pointLight.position.set(-5, 18, 0)
+  // scene.add(pointLight, pointLightHelper);
+
+  const softLight = new THREE.RectAreaLight('#ffffff', 1.5, 10, 10);
+  const rectAreaLightHelper = new RectAreaLightHelper(softLight);
+  softLight.position.y = 15
+  softLight.rotation.x = -Math.PI/2;
+
+  scene.add(softLight, rectAreaLightHelper)
 
   //Geometries
 
 
   //Materials
 
-  //--------------Base 
-
+ 
 
   //Base variables 
 
-  // generateBase();
-  // generateSphere();
+  generateBase();
+  generateSphere();
   generateTerrain();
 
   scene.background = new THREE.Color('#85C1E9')
@@ -302,7 +323,7 @@ function initProject(){
 
   //cube.scale = 1
 
-  camera.lookAt(new THREE.Vector3(0,0,0));
+
 
 
   //--------------------Gui 
@@ -424,6 +445,7 @@ function initProject(){
   terrainGui.add(terrainProperties, 'repeatY', 0, 2)
   terrainGui.add(terrainProperties, 'rotation', 0, 6.283)
   terrainGui.add(terrainProperties, 'height', -10, 10)
+  terrainGui.add(terrainProperties, 'wireframeView')
 
 
 
@@ -666,6 +688,8 @@ function generateSphere(){
     envMapIntensity: spherePropierties.envMapIntensity
   });
 
+  sphereMaterial.depthWrite = false
+
   sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
 
   sphereMesh.position.y = (spherePropierties.radius) - baseProperties.extrudeDepth/2 ;
@@ -680,30 +704,43 @@ function generateTerrain(){
     scene.remove(terrainMesh);
   }
 
-  terrainGeometry = new THREE.PlaneGeometry(20, 20, 40, 40)
   
-
+  terrainGeometry = new THREE.PlaneGeometry(20, 20, 30, 30)
+  
   // for (let i = 0; i < terrainGeometry.attributes.position.array.length/3+1; i++){
   //   const x = i*3 + 0
   //   const y = i*3 + 2
   //   const z = i*3 + 1
   //   terrainGeometry.attributes.position.array[y] = Math.random()
   // }
-  heightMap.wrapS = THREE.RepeatWrapping
-  heightMap.wrapT = THREE.RepeatWrapping
+   
+  heightMap.center.x = 0.5
+  heightMap.center.y = 0.5
+  heightMap.wrapS = THREE.MirroredRepeatWrapping  
+  heightMap.wrapT = THREE.MirroredRepeatWrapping  
   heightMap.repeat.x = terrainProperties.repeatX
   heightMap.repeat.y = terrainProperties.repeatY
   heightMap.rotation = terrainProperties.rotation
+
+  alphaTerrainMap.magFilter = THREE.NearestFilter
+  alphaTerrainMap.minFilter = THREE.NearestFilter
   
   terrainMaterial = new THREE.MeshStandardMaterial({
-    wireframe: true,
-    //side: THREE.DoubleSide.
+    wireframe: terrainProperties.wireframeView,
+    color: '#E5F5FF',
+    side: THREE.DoubleSide,
     displacementMap: heightMap,
     displacementScale: terrainProperties.height,
-  })
+    transparent: true,
+    alphaMap: alphaTerrainMap,
+  });
+
+  terrainMaterial.flatShading = true;
+  terrainMaterial.alphaTest = 0.001;
 
   terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
   terrainMesh.rotation.x = -(Math.PI/2)
+  terrainMesh.position.set(0, 4.25, 0);
   scene.add(terrainMesh)
 
 }
