@@ -6,6 +6,8 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js'
 
+import * as CANNON from 'cannon-es';
+
 
 import GUI from 'lil-gui';
 import { gsap } from 'gsap';
@@ -79,7 +81,7 @@ const environmentMapTexture = cubeTextureLoader.load([
 ]);
 
 //Nameplate Text 
-const fontUrl = '/resources/fonts/Shannia_Bold (1).json';
+const fontUrl = '/resources/fonts/Shannia_Bold.json';
 let nameplateFont = null;
 const nameFont = fontLoader.load(fontUrl, (font)=>{
   nameplateFont = font;
@@ -263,8 +265,17 @@ let snowFlakesGeometry = null;
 let snowFlakesMaterial = null;
 let snowFlakesMesh = null;
 
+//Physics 
+let world = null;
+
+let snowBallMesh = null;
+let snowBallShape = null;
+let snowBallBody = null;
+
 //Scene 
 const scene = new THREE.Scene();
+
+
 
 function initProject(){
 
@@ -328,21 +339,17 @@ function initProject(){
 
   //Base variables 
 
-  console.time('generateBaseTime');
-  generateBase();
-  console.timeEnd('generateBaseTime');
+
+  //generateBase();
   
-  console.time('generateSphereTime');
   generateSphere();
-  console.timeEnd('generateSphereTime');
   
-  console.time('generateTerrainTime');
-  generateTerrain();
-  console.timeEnd('generateTerrainTime');
+  //generateTerrain();
   
-  console.time('generateSnowFlakesTime');
   genearateSnowFlakes();
-  console.timeEnd('generateSnowFlakesTime');
+
+  //Create Physics world
+  generatePhysicsWorld();
 
   scene.background = new THREE.Color('#85C1E9')
   scene.background = environmentMapTexture
@@ -371,7 +378,7 @@ function initProject(){
 
   //--------------------Gui 
   console.time('guiTime')
-  const gui = new GUI();
+  const gui = new GUI().close();
   
   //Base folder
   
@@ -481,7 +488,7 @@ function initProject(){
   
   //Terrain Folder
   
-  const terrainGui = gui.addFolder('Terrain').onChange(generateTerrain);
+  const terrainGui = gui.addFolder('Terrain').onChange(generateTerrain).close();
   
   terrainGui.add(terrainProperties, 'repeatX', 0, 2)
   terrainGui.add(terrainProperties, 'repeatY', 0, 2)
@@ -489,8 +496,6 @@ function initProject(){
   terrainGui.add(terrainProperties, 'height', -10, 100)
   terrainGui.add(terrainProperties, 'wireframeView')
   
-  console.timeEnd('guiTime')
-
   //Animation
   
   const clock = new THREE.Clock();
@@ -534,22 +539,15 @@ function initProject(){
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
   }
-  console.timeEnd('three')
   tick();
 }
 
 
 
-
 function generateBase(){
   //Creo la forma base y la extruyo con las anteriores funciones
-  console.time('GenerateBaseShape');
   generateBaseShape();
-  console.timeEnd('GenerateBaseShape');
-
-  console.time('GenerateBaseMesh');
   generateBaseMesh();
-  console.timeEnd('GenerateBaseMesh');
 
   // Elimino grupos anteriores Creo un grupo para manipular todo en conjunto de la extruccion
   if(baseGroup){
@@ -558,19 +556,16 @@ function generateBase(){
   }
 
   //Condiciono a si el visualizar base no esta activado entonces que no agregue al grupo
-  console.time('GenerateBaseGroups')
   if(baseProperties.visualizeBaseShape){  
     baseGroup.add(baseLine);
   }
   baseGroup.add(baseMesh);
   scene.add(baseGroup)
   baseGroup.rotation.x = -Math.PI/2;
-  console.timeEnd('GenerateBaseGroups')
 
   //Creo la placa con el nombre y el material de ambos
 
   //Update the textures atributes
-  console.time('GenerateNameplateMaterial')
   Object.keys(goldTexture).forEach((texture)=>{
     goldTexture[texture].wrapS = THREE.RepeatWrapping;
     goldTexture[texture].wrapT = THREE.RepeatWrapping;
@@ -592,22 +587,14 @@ function generateBase(){
     metalness: nameplateProperties.materialMetalness,
     reflectivity: nameplateProperties.materialReflectivity, 
   });
-  console.timeEnd('GenerateNameplateMaterial')
   
   nameplateMaterial.normalScale.x = nameplateProperties.materialNormalScale;
   nameplateMaterial.normalScale.y = nameplateProperties.materialNormalScale;
-  
-  console.time('generatePlateMesh');
-  generatePlateMesh();
-  console.timeEnd('generatePlateMesh');
 
-  console.time('generateNameMesh');
+  generatePlateMesh();
   generateNameMesh();
-  console.timeEnd('generateNameMesh');
 
   //Elimino el nameplate anterior y creo uno nuevo
-
-  console.time('GenerateNameplateGroup')
   if(nameplateGroup){
     nameplateGroup.clear();
     scene.remove.nameplateGroup
@@ -616,7 +603,6 @@ function generateBase(){
   nameplateGroup.add(plateMesh);
   nameplateGroup.position.z = ((baseProperties.height/2) + (baseProperties.extrudeBevelOffset) + (baseProperties.extrudeBevelSize))
   scene.add(nameplateGroup)
-  console.timeEnd('GenerateNameplateGroup')
 }
 
 function generateBaseShape(){
@@ -724,7 +710,6 @@ function generateNameMesh(){
     nameGeometry.dispose();
   }
 
-  console.time('generateTextGeometry')
   nameGeometry = new TextGeometry('Max Santana', {
     font: nameplateFont,
     size: nameplateProperties.nameSize,
@@ -735,7 +720,6 @@ function generateNameMesh(){
     bevelSize: nameplateProperties.nameBevelSize,
     bevelSegments: nameplateProperties.nameBevelSegments,
   })
-  console.timeEnd('generateTextGeometry')
   
   nameGeometry.center();
   nameGeometry.translate(0, 0, (nameplateProperties.nameHeight/2) + (nameplateProperties.plateDepth/2))
@@ -913,4 +897,21 @@ function generateRandomPositionInsideSphere(radius) {
   const z = r * Math.cos(theta);
 
   return { x, y, z };
+}
+
+function generatePhysicsWorld(){
+  world = new CANNON.World({
+    allowSleep: true,
+    gravity: new CANNON.Vec3(0, -9.81, 0),
+    broadphase: new CANNON.SAPBroadphase(world),
+  })
+  
+  snowBallMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5),
+    new THREE.MeshBasicMaterial(),
+  )
+  snowBallMesh.position.y = 12;
+  scene.add(snowBallMesh);
+
+
 }
