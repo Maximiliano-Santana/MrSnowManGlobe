@@ -128,11 +128,18 @@ snowFlakeTexture.minFilter = THREE.NearestFilter
 
 //Models
 let interior = null;
-gltfLoader.load('/resources/models/interior2.glb', (gltf)=>{
+gltfLoader.load('/resources/models/interior4.glb', (gltf)=>{
   console.log( gltf.scene.children[1].material)
   gltf.scene.children[1].material.envMap = environmentMapTexture;
   gltf.scene.children[1].material.roughness = 0;
   gltf.scene.children[1].material.metalness = 0.5;
+
+  gltf.scene.traverse((child)=>{
+    if(child.isMesh && child.material.isMeshStandardMaterial){
+      //child.material.color.colorSpace = THREE.SRGBColorSpace;
+      //child.material.needsUpdate = true;
+    }
+  });
 
 
   interior = gltf.scene;
@@ -307,6 +314,9 @@ let terrainBody = null;
 
 //Scene 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color('#85C1E9')
+scene.background = environmentMapTexture;
+scene.backgroundBlurriness = 0.085;
 
 
 
@@ -315,7 +325,8 @@ function initProject(){
   //Renderer
   const canvas = document.querySelector('.experience');
   const renderer = new THREE.WebGLRenderer({canvas:canvas});
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+
 
 
   renderer.setSize(sizes.width, sizes.height);
@@ -349,15 +360,16 @@ function initProject(){
 
 
   //Lights 
-  const ambientLight = new THREE.AmbientLight('#ffffff', 0.5);
+  const ambientLight = new THREE.AmbientLight('#ffffff', 0.2);
   scene.add(ambientLight);
+
 
   // const pointLight = new THREE.PointLight('#ffffff', 1)
   // const pointLightHelper = new THREE.PointLightHelper(pointLight)
   // pointLight.position.set(-5, 18, 0)
   // scene.add(pointLight, pointLightHelper);
 
-  const softLight = new THREE.RectAreaLight('#ffffff', 1.5, 10, 10);
+  const softLight = new THREE.RectAreaLight('#ffffff', 3, 10, 10);
   softLight.position.y = 15
   softLight.rotation.x = -Math.PI/2;
 
@@ -373,7 +385,7 @@ function initProject(){
   const windowLightBig = new THREE.RectAreaLight('#FFD42C', 5, 1.75, 1.2);
   windowLightBig.position.set(-1.25,5.5, -1.8);
   windowLightBig.rotation.y = Math.PI-(Math.PI/16)-(Math.PI/2);
-  scene.add(windowLightBig)
+  scene.add(windowLightBig);
 
   //Geometries
 
@@ -394,8 +406,6 @@ function initProject(){
   //Create Physics world
   generatePhysicsWorld();
 
-  scene.background = new THREE.Color('#85C1E9')
-  scene.background = environmentMapTexture
 
 
   //Objects 
