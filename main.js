@@ -1,10 +1,12 @@
 import './style.css';
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js'
+
 
 import * as CANNON from 'cannon-es';
 
@@ -21,6 +23,8 @@ const sizes = {
   width: window.innerWidth,
   height: window.innerHeight
 }
+
+
 
 //----------------------------------------------Loaders
 console.time('loadersTime')
@@ -42,6 +46,7 @@ loadingManager.onError = () => {
   //console.log('on error')
 }
 
+const gltfLoader = new GLTFLoader(loadingManager);
 const textureLoader = new THREE.TextureLoader(loadingManager);
 const cubeTextureLoader = new THREE.CubeTextureLoader(loadingManager);
 const fontLoader = new FontLoader(loadingManager);
@@ -115,11 +120,29 @@ alphaSphereMap.magFilter = THREE.NearestFilter
 alphaSphereMap.minFilter = THREE.NearestFilter
 
 //Snow Flakes texture 
-const snowFlakeTexture = textureLoader.load('/resources/textures/snowFlakeTexture/snowFlakeTexture.png');
+const snowFlakeTexture = textureLoader.load('/resources/textures/snowFlakeTexture/1.png');
 snowFlakeTexture.generateMipmaps = false;
 snowFlakeTexture.magFilter = THREE.NearestFilter  
 snowFlakeTexture.minFilter = THREE.NearestFilter
 
+
+//Models
+let interior = null;
+gltfLoader.load('/resources/models/interior2.glb', (gltf)=>{
+  console.log( gltf.scene.children[1].material)
+  gltf.scene.children[1].material.envMap = environmentMapTexture;
+  gltf.scene.children[1].material.roughness = 0;
+  gltf.scene.children[1].material.metalness = 0.5;
+
+
+  interior = gltf.scene;
+
+  interior.position.y = -2.5;
+  interior.rotation.y = Math.PI/2;
+  interior.scale.set(5.4, 5.4, 5.4)
+  scene.add(interior)
+  
+});
 
 //----------------------------------------------Init project
 const baseProperties = {
@@ -137,7 +160,7 @@ const baseProperties = {
 	extrudeBevelOffset: 0,
 	extrudeBevelSegments: 7,
   extrudeWireframeView: false,
-
+  
   //Textures and Material
   textureRepeatX: 0.08,
   textureRepeatY: 0.05,
@@ -217,11 +240,17 @@ const terrainProperties = {
   rotation:0,
   height: 14,
   wireframeView: false,
+  color: '#E5F5FF'
 }
 
 const snowFlakesProperties = {
   //
   count: 200,
+}
+
+const snowBallProperties = {
+  radius: 0.25,
+  detail: 1
 }
 
 //Base
@@ -267,10 +296,14 @@ let snowFlakesMesh = null;
 
 //Physics 
 let world = null;
+let objectsToUpdate = [];
 
 let snowBallMesh = null;
 let snowBallShape = null;
 let snowBallBody = null;
+
+let terrainShape = null;
+let terrainBody = null;
 
 //Scene 
 const scene = new THREE.Scene();
@@ -328,7 +361,19 @@ function initProject(){
   softLight.position.y = 15
   softLight.rotation.x = -Math.PI/2;
 
+
   scene.add(softLight)
+
+  const windowLight = new THREE.RectAreaLight('#FFD42C', 5, 0.75, 1.2);
+  
+  windowLight.position.set(1.2,5.5, -0.2);
+  windowLight.rotation.y = Math.PI-(Math.PI/16);
+  scene.add(windowLight);
+  
+  const windowLightBig = new THREE.RectAreaLight('#FFD42C', 5, 1.75, 1.2);
+  windowLightBig.position.set(-1.25,5.5, -1.8);
+  windowLightBig.rotation.y = Math.PI-(Math.PI/16)-(Math.PI/2);
+  scene.add(windowLightBig)
 
   //Geometries
 
@@ -340,12 +385,10 @@ function initProject(){
   //Base variables 
 
 
-  //generateBase();
+  generateBase();
   
   generateSphere();
-  
-  //generateTerrain();
-  
+
   genearateSnowFlakes();
 
   //Create Physics world
@@ -373,168 +416,33 @@ function initProject(){
 
   //cube.scale = 1
 
-
-
-
-  //--------------------Gui 
-  console.time('guiTime')
-  const gui = new GUI().close();
-  
-  //Base folder
-  
-  const baseGui = gui.addFolder('Base').onFinishChange(generateBase).close();
-  
-  //Wood Base Folder
-  const woodBaseGui = baseGui.addFolder('Wood Base').close();
-  
-  //Folder Base Shape
-  const baseShapeGui = woodBaseGui.addFolder('Base Shape').close();
-  
-  baseShapeGui.add(baseProperties, 'visualizeBaseShape');
-  baseShapeGui.add(baseProperties, 'height', 0, 40);
-  baseShapeGui.add(baseProperties, 'width', 0, 40);
-  
-  //Folder Extrude Base Shape
-  
-  const extrudeBaseShapeGui = woodBaseGui.addFolder('Extrude Base Shape').close();
-  
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeDepth', 1, 40, 1).name('Extrude Depth');
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeWireframeView').name('Wireframe view');
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeSteps', 1, 4, 1).name('Extrude Steps');
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelEnabled').name('Bevel enabled');
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelThickness', 0, 2).name('Bevel Thickness');
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Size');
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
-  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
-  
-  //Folder Wood Base Textures and Materials
-  
-  const textureBaseGui = woodBaseGui.addFolder('Base Textures & Materials').close();
-  
-  textureBaseGui.add(baseProperties, 'textureRepeatX', 0.005, 0.15).name('Repeat X');
-  textureBaseGui.add(baseProperties, 'textureRepeatY', 0.005, 0.15).name('Repeat Y');
-  textureBaseGui.add(baseProperties, 'textureRotation', 0, 6.283).name('Rotation');
-  
-  textureBaseGui.addColor(baseProperties, 'materialColor').name('Material Color');
-  textureBaseGui.add(baseProperties, 'materialRoughness', 0, 1).name('Roughness');
-  textureBaseGui.add(baseProperties, 'materialAoIntensity', 0, 15).name('Ao Intensity');
-  textureBaseGui.add(baseProperties, 'materialMetalness', 0, 1).name('Metalness');
-  textureBaseGui.add(baseProperties, 'materialReflectivity', 0, 1).name('Reflectivity');
-  textureBaseGui.add(baseProperties, 'materialclearCoat', 0, 1).name('Clear Coat');
-  textureBaseGui.add(baseProperties, 'materialclearCoatRoughness', 0, 1).name('ClearC Roughness');
-  textureBaseGui.add(baseProperties, 'materialNormalScale', -5, 5).name('NormalScale');
-  textureBaseGui.add(baseProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
-  
-  //Nameplate Folder
-  
-  const nameplateGui = baseGui.addFolder('Nameplate').close();
-  
-  nameplateGui.add(nameplateProperties, 'plateDepth', 0, 5);
-  nameplateGui.add(nameplateProperties, 'wireframeView');
-  
-  //Nampleate text folder
-  const nameplateTextGui = nameplateGui.addFolder('Text').close();
-  
-  nameplateTextGui.add(nameplateProperties, 'nameSize', 0, 5).name('Size')
-  nameplateTextGui.add(nameplateProperties, 'nameHeight', 0, 5).name('Depth')
-  nameplateTextGui.add(nameplateProperties, 'nameCurveSegments', 1 , 10, 1).name('Curve Segments');
-  nameplateTextGui.add(nameplateProperties, 'nameBevelEnabled').name('Bevel enabled');
-  nameplateTextGui.add(nameplateProperties, 'nameBevelThickness', 0, 4).name('Bevel Thickness');
-  nameplateTextGui.add(nameplateProperties, 'nameBevelSize', 0, 4).name('Bevel Size');
-  nameplateTextGui.add(nameplateProperties, 'nameBevelSegments', 0, 4, 1).name('Bevel Segments');
-  
-  
-  //Nameplate material folder
-  
-  const nameplateMaterialGui = nameplateGui.addFolder('Material').close();
-  
-  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatX', 0, 10).name('Repeat X');
-  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatY', 0, 10).name('Repeat Y');
-  nameplateMaterialGui.add(nameplateProperties, 'textureRotation', 0, 6.283).name('Rotation');
-  
-  nameplateMaterialGui.addColor(nameplateProperties, 'materialColor').name('Material Color');
-  nameplateMaterialGui.add(nameplateProperties, 'materialRoughness', 0, 1).name('Roughness');
-  nameplateMaterialGui.add(nameplateProperties, 'materialMetalness', 0, 1).name('Metalness');
-  nameplateMaterialGui.add(nameplateProperties, 'materialReflectivity', 0, 10).name('Reflectivity');
-  nameplateMaterialGui.add(nameplateProperties, 'materialNormalScale', -10, 10).name('NormalScale');
-  nameplateMaterialGui.add(nameplateProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
-  
-  //Sphere folder
-  
-  const sphereGui = gui.addFolder('Sphere').onChange(generateSphere).close();
-  
-  sphereGui.add(spherePropierties, 'radius', 0, 30);
-  sphereGui.add(spherePropierties, 'subdivisions', 0, 100);
-  sphereGui.add(spherePropierties, 'wireframeView')
-  
-  //Sphere Material folder
-  
-  const sphereMaterialGui = sphereGui.addFolder('Material').close();
-  
-  sphereMaterialGui.add(spherePropierties, 'textureRepeatX', 0, 6).name('Repeat X');
-  sphereMaterialGui.add(spherePropierties, 'textureRepeatY', 0, 6).name('Repeat Y');
-  sphereMaterialGui.add(spherePropierties, 'textureRotation', 0, 6.283).name('Rotation');
-  sphereMaterialGui.addColor(spherePropierties, 'color', 0, 100);
-  sphereMaterialGui.add(spherePropierties, 'metalness', 0, 1);
-  sphereMaterialGui.add(spherePropierties, 'roughness', 0, 1);
-  sphereMaterialGui.add(spherePropierties, 'envMapIntensity', 0, 5);
-  sphereMaterialGui.add(spherePropierties, 'clearcoat', 0, 1);
-  sphereMaterialGui.add(spherePropierties, 'transparent');
-  sphereMaterialGui.add(spherePropierties, 'transmission', 0, 1);
-  sphereMaterialGui.add(spherePropierties, 'opacity', 0, 1);
-  sphereMaterialGui.add(spherePropierties, 'reflectivity', 0, 1);
-  sphereMaterialGui.add(spherePropierties, 'refractionRatio', 0, 1);
-  sphereMaterialGui.add(spherePropierties, 'ior', 0, 1);
-  
-  //Terrain Folder
-  
-  const terrainGui = gui.addFolder('Terrain').onChange(generateTerrain).close();
-  
-  terrainGui.add(terrainProperties, 'repeatX', 0, 2)
-  terrainGui.add(terrainProperties, 'repeatY', 0, 2)
-  terrainGui.add(terrainProperties, 'rotation', 0, 6.283)
-  terrainGui.add(terrainProperties, 'height', -10, 100)
-  terrainGui.add(terrainProperties, 'wireframeView')
+  //Gui 
+  generateGui();
   
   //Animation
   
   const clock = new THREE.Clock();
-  
+  let lastTime = 0;
+
   const tick = ()=>{
+    const time = clock.getElapsedTime();
+    const deltaTime = time - lastTime;
+    lastTime = time;
+
+    //console.log(1/deltaTime) //fps
+
+    //Update controls
     orbitControls.update();
     
-    for (let i = 0; i < snowFlakesProperties.count; i++){
-      const x = i*3+0
-      const y = i*3+1
-      const z = i*3+2
-      
-      
-      
-      const vector1 = new THREE.Vector3()
-      vector1.x = snowFlakesGeometry.attributes.position.array[x];
-      vector1.y = snowFlakesGeometry.attributes.position.array[y];
-      vector1.z = snowFlakesGeometry.attributes.position.array[z];
-      
-      
-      
-      
-      const distance = vector1.distanceTo(sphereMesh.position);
-      
-      
-      if(distance > (spherePropierties.radius-1)*1.5){
-        // do{
-          const newPosition = generateRandomPositionInsideSphere(spherePropierties.radius);
-          snowFlakesGeometry.attributes.position.array[x] = newPosition.x
-          snowFlakesGeometry.attributes.position.array[y] = newPosition.y
-          snowFlakesGeometry.attributes.position.array[z] = newPosition.z
-          // }while(snowFlakesGeometry.attributes.position.array[y] < 5)
-          
-        }
-        snowFlakesGeometry.attributes.position.array[y] -= 0.005
-      }
-    snowFlakesMesh.rotation.y += 0.0005
-    snowFlakesGeometry.attributes.position.needsUpdate = true;
+    //Update physics world
+    world.step(1/60, deltaTime, 3);
 
+    for (const object of objectsToUpdate){
+      object.mesh.position.copy(object.body.position)
+      object.mesh.quaternion.copy(object.body.quaternion) //now we are updating the rotation
+    }
+
+    snowFlakesAnimate();
 
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
@@ -834,7 +742,7 @@ function generateTerrain(){
 
   fillTerrainMaterial = new THREE.MeshStandardMaterial({
     wireframe: terrainProperties.wireframeView,
-    color: '#E5F5FF',
+    color: terrainProperties.color,
     transparent: true,
     alphaMap: alphaSphereMap,
     side: THREE.DoubleSide,
@@ -876,12 +784,44 @@ function genearateSnowFlakes(){
     alphaMap: snowFlakeTexture,
   })
 
-  snowFlakesMaterial.alphaTest = 0.01;
+  snowFlakesMaterial.alphaTest = 0.9;
   snowFlakesMaterial.depthWrite = false;
   
   snowFlakesMesh = new THREE.Points(snowFlakesGeometry, snowFlakesMaterial);
   snowFlakesMesh.position.copy(sphereMesh.position)
   scene.add(snowFlakesMesh)
+}
+
+function snowFlakesAnimate(){
+    //Snow flakes animation 
+    for (let i = 0; i < snowFlakesProperties.count; i++){
+      const x = i*3+0
+      const y = i*3+1
+      const z = i*3+2
+      
+      
+      
+      const vector1 = new THREE.Vector3()
+      vector1.x = snowFlakesGeometry.attributes.position.array[x];
+      vector1.y = snowFlakesGeometry.attributes.position.array[y];
+      vector1.z = snowFlakesGeometry.attributes.position.array[z];
+      
+      const distance = vector1.distanceTo(sphereMesh.position);
+      
+      
+      if(distance > (spherePropierties.radius-1)*1.5){
+        // do{
+          const newPosition = generateRandomPositionInsideSphere(spherePropierties.radius);
+          snowFlakesGeometry.attributes.position.array[x] = newPosition.x
+          snowFlakesGeometry.attributes.position.array[y] = newPosition.y
+          snowFlakesGeometry.attributes.position.array[z] = newPosition.z
+          // }while(snowFlakesGeometry.attributes.position.array[y] < 5)
+          
+        }
+        snowFlakesGeometry.attributes.position.array[y] -= 0.005
+      }
+    snowFlakesMesh.rotation.y += 0.0005
+    snowFlakesGeometry.attributes.position.needsUpdate = true;
 }
 
 function generateRandomPositionInsideSphere(radius) {
@@ -900,18 +840,168 @@ function generateRandomPositionInsideSphere(radius) {
 }
 
 function generatePhysicsWorld(){
+
+  //Create World
   world = new CANNON.World({
     allowSleep: true,
     gravity: new CANNON.Vec3(0, -9.81, 0),
     broadphase: new CANNON.SAPBroadphase(world),
   })
   
+  //------------Create disk with physics
+  const diskRadius = 0.2;
+  const diskHeight = 0.1;
+
   snowBallMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.5),
-    new THREE.MeshBasicMaterial(),
+    new THREE.CylinderGeometry(diskRadius, diskRadius, diskHeight, 10, 1),
+    new THREE.MeshStandardMaterial({
+      flatShading: true,
+      color: '#333333',
+    }),
   )
-  snowBallMesh.position.y = 12;
+  snowBallMesh.position.set(2, 12, 6)
   scene.add(snowBallMesh);
 
+  snowBallShape = new CANNON.Cylinder(diskRadius, diskRadius, diskHeight);
+  snowBallBody = new CANNON.Body({
+    mass: 1,
+    shape: snowBallShape,
+  })
+  snowBallBody.position.copy(snowBallMesh.position);
+  world.addBody(snowBallBody)
 
+  objectsToUpdate.push({body: snowBallBody, mesh: snowBallMesh});
+
+  //--------------------Create terrain physics 
+  terrainShape = new CANNON.Plane()
+  terrainBody = new CANNON.Body({
+    mass:0,
+    shape: terrainShape,
+  })
+  terrainBody.position.y = 4.175
+  terrainBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI/2)
+  world.addBody(terrainBody)
+
+  //
+
+}
+
+function generateGui(){
+  const gui = new GUI().close();
+  
+  //Base folder
+  
+  const baseGui = gui.addFolder('Base').onFinishChange(generateBase).close();
+  
+  //Wood Base Folder
+  const woodBaseGui = baseGui.addFolder('Wood Base').close();
+  
+  //Folder Base Shape
+  const baseShapeGui = woodBaseGui.addFolder('Base Shape').close();
+  
+  baseShapeGui.add(baseProperties, 'visualizeBaseShape');
+  baseShapeGui.add(baseProperties, 'height', 0, 40);
+  baseShapeGui.add(baseProperties, 'width', 0, 40);
+  
+  //Folder Extrude Base Shape
+  
+  const extrudeBaseShapeGui = woodBaseGui.addFolder('Extrude Base Shape').close();
+  
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeDepth', 1, 40, 1).name('Extrude Depth');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeWireframeView').name('Wireframe view');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeSteps', 1, 4, 1).name('Extrude Steps');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelEnabled').name('Bevel enabled');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelThickness', 0, 2).name('Bevel Thickness');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSize', 0, 4).name('Bevel Size');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelOffset', 0, 4).name('Bevel Offset');
+  extrudeBaseShapeGui.add(baseProperties, 'extrudeBevelSegments', 0, 8, 1).name('Bevel Segments');
+  
+  //Folder Wood Base Textures and Materials
+  
+  const textureBaseGui = woodBaseGui.addFolder('Base Textures & Materials').close();
+  
+  textureBaseGui.add(baseProperties, 'textureRepeatX', 0.005, 0.15).name('Repeat X');
+  textureBaseGui.add(baseProperties, 'textureRepeatY', 0.005, 0.15).name('Repeat Y');
+  textureBaseGui.add(baseProperties, 'textureRotation', 0, 6.283).name('Rotation');
+  
+  textureBaseGui.addColor(baseProperties, 'materialColor').name('Material Color');
+  textureBaseGui.add(baseProperties, 'materialRoughness', 0, 1).name('Roughness');
+  textureBaseGui.add(baseProperties, 'materialAoIntensity', 0, 15).name('Ao Intensity');
+  textureBaseGui.add(baseProperties, 'materialMetalness', 0, 1).name('Metalness');
+  textureBaseGui.add(baseProperties, 'materialReflectivity', 0, 1).name('Reflectivity');
+  textureBaseGui.add(baseProperties, 'materialclearCoat', 0, 1).name('Clear Coat');
+  textureBaseGui.add(baseProperties, 'materialclearCoatRoughness', 0, 1).name('ClearC Roughness');
+  textureBaseGui.add(baseProperties, 'materialNormalScale', -5, 5).name('NormalScale');
+  textureBaseGui.add(baseProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
+  
+  //Nameplate Folder
+  
+  const nameplateGui = baseGui.addFolder('Nameplate').close();
+  
+  nameplateGui.add(nameplateProperties, 'plateDepth', 0, 5);
+  nameplateGui.add(nameplateProperties, 'wireframeView');
+  
+  //Nampleate text folder
+  const nameplateTextGui = nameplateGui.addFolder('Text').close();
+  
+  nameplateTextGui.add(nameplateProperties, 'nameSize', 0, 5).name('Size')
+  nameplateTextGui.add(nameplateProperties, 'nameHeight', 0, 5).name('Depth')
+  nameplateTextGui.add(nameplateProperties, 'nameCurveSegments', 1 , 10, 1).name('Curve Segments');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelEnabled').name('Bevel enabled');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelThickness', 0, 4).name('Bevel Thickness');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelSize', 0, 4).name('Bevel Size');
+  nameplateTextGui.add(nameplateProperties, 'nameBevelSegments', 0, 4, 1).name('Bevel Segments');
+  
+  
+  //Nameplate material folder
+  
+  const nameplateMaterialGui = nameplateGui.addFolder('Material').close();
+  
+  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatX', 0, 10).name('Repeat X');
+  nameplateMaterialGui.add(nameplateProperties, 'textureRepeatY', 0, 10).name('Repeat Y');
+  nameplateMaterialGui.add(nameplateProperties, 'textureRotation', 0, 6.283).name('Rotation');
+  
+  nameplateMaterialGui.addColor(nameplateProperties, 'materialColor').name('Material Color');
+  nameplateMaterialGui.add(nameplateProperties, 'materialRoughness', 0, 1).name('Roughness');
+  nameplateMaterialGui.add(nameplateProperties, 'materialMetalness', 0, 1).name('Metalness');
+  nameplateMaterialGui.add(nameplateProperties, 'materialReflectivity', 0, 10).name('Reflectivity');
+  nameplateMaterialGui.add(nameplateProperties, 'materialNormalScale', -10, 10).name('NormalScale');
+  nameplateMaterialGui.add(nameplateProperties, 'envMapIntensity', -5, 5).name('EnvMap Intensity');
+  
+  //Sphere folder
+  
+  const sphereGui = gui.addFolder('Sphere').onChange(generateSphere).close();
+  
+  sphereGui.add(spherePropierties, 'radius', 0, 30);
+  sphereGui.add(spherePropierties, 'subdivisions', 0, 100);
+  sphereGui.add(spherePropierties, 'wireframeView')
+  
+  //Sphere Material folder
+  
+  const sphereMaterialGui = sphereGui.addFolder('Material').close();
+  
+  sphereMaterialGui.add(spherePropierties, 'textureRepeatX', 0, 6).name('Repeat X');
+  sphereMaterialGui.add(spherePropierties, 'textureRepeatY', 0, 6).name('Repeat Y');
+  sphereMaterialGui.add(spherePropierties, 'textureRotation', 0, 6.283).name('Rotation');
+  sphereMaterialGui.addColor(spherePropierties, 'color', 0, 100);
+  sphereMaterialGui.add(spherePropierties, 'metalness', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'roughness', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'envMapIntensity', 0, 5);
+  sphereMaterialGui.add(spherePropierties, 'clearcoat', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'transparent');
+  sphereMaterialGui.add(spherePropierties, 'transmission', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'opacity', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'reflectivity', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'refractionRatio', 0, 1);
+  sphereMaterialGui.add(spherePropierties, 'ior', 0, 1);
+  
+  //Terrain Folder
+  
+  const terrainGui = gui.addFolder('Terrain').onChange(generateTerrain).close();
+  
+  terrainGui.add(terrainProperties, 'repeatX', 0, 2)
+  terrainGui.add(terrainProperties, 'repeatY', 0, 2)
+  terrainGui.add(terrainProperties, 'rotation', 0, 6.283)
+  terrainGui.add(terrainProperties, 'height', -10, 100)
+  terrainGui.add(terrainProperties, 'wireframeView')
 }
